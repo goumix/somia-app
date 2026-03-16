@@ -3,7 +3,11 @@ import HealthKit
 
 struct HealthDebugView: View {
 
-    @State private var hk = HealthKitManager.shared
+    #if targetEnvironment(simulator)
+    @State private var hk: any HealthKitManaging = HealthKitManagerMock()
+    #else
+    @State private var hk: any HealthKitManaging = HealthKitManager.shared
+    #endif
 
     private let msUnit = HKUnit.secondUnit(with: .milli)
 

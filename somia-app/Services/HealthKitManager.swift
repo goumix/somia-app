@@ -2,7 +2,7 @@ import Foundation
 import HealthKit
 
 @Observable
-final class HealthKitManager {
+final class HealthKitManager: HealthKitManaging {
 
     static let shared = HealthKitManager()
 
