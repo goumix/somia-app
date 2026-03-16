@@ -1,17 +1,17 @@
-//
-//  somia_appApp.swift
-//  somia-app
-//
-//  Created by Nathéo Brault on 16/03/2026.
-//
-
 import SwiftUI
 
 @main
 struct somia_appApp: App {
+    @State private var coordinator = OnboardingCoordinator()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if coordinator.hasSeenOnboarding {
+                ContentView()
+            } else {
+                OnboardingView()
+                    .environment(coordinator)
+            }
         }
     }
 }

@@ -7,15 +7,10 @@
 
 import SwiftUI
 
+// Main app view — affiche l'écran de debug HealthKit pendant le développement.
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        HealthDebugView()
     }
 }
 
