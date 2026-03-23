@@ -7,10 +7,13 @@
 
 import SwiftUI
 
-// Main app view — affiche l'écran de debug HealthKit pendant le développement.
+// Main app container — NavigationStack with DashboardView as root.
 struct ContentView: View {
     var body: some View {
-        HealthDebugView()
+        NavigationStack {
+            DashboardView()
+        }
+        .tint(Color.somiaAccent)
     }
 }
 

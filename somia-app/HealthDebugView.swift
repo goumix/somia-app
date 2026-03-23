@@ -65,8 +65,7 @@ struct HealthDebugView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 Color.somiaBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
@@ -107,7 +106,6 @@ struct HealthDebugView: View {
                 }
             }
             .task { await hk.fetchData() }
-        }
     }
 
     // MARK: - Vue tableau (inchangée)
