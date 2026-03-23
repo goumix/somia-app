@@ -17,9 +17,17 @@ struct HealthDebugView: View {
         case charts = "Graphique"
     }
 
-    private let msUnit = HKUnit.secondUnit(with: .milli)
+    // MARK: - Units
 
-    // MARK: - Données VFC (30 derniers jours)
+    private let msUnit      = HKUnit.secondUnit(with: .milli)
+    private let bpmUnit     = HKUnit.count().unitDivided(by: .minute())
+    private let percentUnit = HKUnit.percent()
+    private let countUnit   = HKUnit.count()
+    private let vo2Unit     = HKUnit(from: "ml/kg*min")
+    private let celsiusUnit = HKUnit.degreeCelsius()
+    private let minuteUnit  = HKUnit.minute()
+
+    // MARK: - Data — HRV (30 days)
 
     private var hrvPoints: [(date: Date, value: Double)] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
@@ -36,7 +44,7 @@ struct HealthDebugView: View {
     private var hrvMin: Double { hrvPoints.map(\.value).min() ?? 0 }
     private var hrvMax: Double { hrvPoints.map(\.value).max() ?? 0 }
 
-    // MARK: - Données sommeil (30 dernières nuits)
+    // MARK: - Data — Sleep (30 nights)
 
     private var sleepNights: [(date: Date, hours: Double)] {
         let cutoff   = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
@@ -61,6 +69,94 @@ struct HealthDebugView: View {
     }
     private var sleepBadNights: Int { sleepNights.filter { $0.hours < 6 }.count }
     private var sleepBest:      Double { sleepNights.map(\.hours).max() ?? 0 }
+
+    // MARK: - Data — Tier 1
+
+    private var rhrPoints: [(date: Date, value: Double)] {
+        hk.restingHeartRateSamples
+            .map { (date: $0.startDate, value: $0.quantity.doubleValue(for: bpmUnit)) }
+            .sorted { $0.date < $1.date }
+    }
+    private var rhrAvg: Double { pointsAvg(rhrPoints) }
+    private var rhrMin: Double { rhrPoints.map(\.value).min() ?? 0 }
+    private var rhrMax: Double { rhrPoints.map(\.value).max() ?? 0 }
+
+    // SpO2 stored as fraction (0.97 = 97 %) — multiplied ×100 for display
+    private var spo2Points: [(date: Date, value: Double)] {
+        hk.spo2Samples
+            .map { (date: $0.startDate, value: $0.quantity.doubleValue(for: percentUnit) * 100) }
+            .sorted { $0.date < $1.date }
+    }
+    private var spo2Avg: Double { pointsAvg(spo2Points) }
+    private var spo2Min: Double { spo2Points.map(\.value).min() ?? 0 }
+    private var spo2Max: Double { spo2Points.map(\.value).max() ?? 0 }
+
+    private var respRatePoints: [(date: Date, value: Double)] {
+        hk.respiratoryRateSamples
+            .map { (date: $0.startDate, value: $0.quantity.doubleValue(for: bpmUnit)) }
+            .sorted { $0.date < $1.date }
+    }
+    private var respRateAvg: Double { pointsAvg(respRatePoints) }
+    private var respRateMin: Double { respRatePoints.map(\.value).min() ?? 0 }
+    private var respRateMax: Double { respRatePoints.map(\.value).max() ?? 0 }
+
+    // Steps aggregated per day (device may produce multiple samples/day)
+    private var stepDays: [(date: Date, value: Double)] {
+        let calendar = Calendar.current
+        var byDay: [Date: Double] = [:]
+        for s in hk.stepSamples {
+            let day = calendar.startOfDay(for: s.startDate)
+            byDay[day, default: 0] += s.quantity.doubleValue(for: countUnit)
+        }
+        return byDay.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
+    }
+    private var stepAvg: Double { pointsAvg(stepDays) }
+    private var stepMin: Double { stepDays.map(\.value).min() ?? 0 }
+    private var stepMax: Double { stepDays.map(\.value).max() ?? 0 }
+
+    private var vo2Points: [(date: Date, value: Double)] {
+        hk.vo2MaxSamples
+            .map { (date: $0.startDate, value: $0.quantity.doubleValue(for: vo2Unit)) }
+            .sorted { $0.date < $1.date }
+    }
+    private var vo2Avg: Double { pointsAvg(vo2Points) }
+    private var vo2Min: Double { vo2Points.map(\.value).min() ?? 0 }
+    private var vo2Max: Double { vo2Points.map(\.value).max() ?? 0 }
+
+    // MARK: - Data — Tier 2
+
+    // Wrist temp is a deviation in °C from nightly baseline; values centered around 0
+    private var wristTempPoints: [(date: Date, value: Double)] {
+        hk.wristTemperatureSamples
+            .map { (date: $0.startDate, value: $0.quantity.doubleValue(for: celsiusUnit)) }
+            .sorted { $0.date < $1.date }
+    }
+    private var wristTempAvg: Double { pointsAvg(wristTempPoints) }
+    private var wristTempMin: Double { wristTempPoints.map(\.value).min() ?? 0 }
+    private var wristTempMax: Double { wristTempPoints.map(\.value).max() ?? 0 }
+
+    // Daylight aggregated per day
+    private var daylightDays: [(date: Date, value: Double)] {
+        let calendar = Calendar.current
+        var byDay: [Date: Double] = [:]
+        for s in hk.timeInDaylightSamples {
+            let day = calendar.startOfDay(for: s.startDate)
+            byDay[day, default: 0] += s.quantity.doubleValue(for: minuteUnit)
+        }
+        return byDay.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
+    }
+    private var daylightAvg: Double { pointsAvg(daylightDays) }
+    private var daylightMin: Double { daylightDays.map(\.value).min() ?? 0 }
+    private var daylightMax: Double { daylightDays.map(\.value).max() ?? 0 }
+
+    private var walkingHRPoints: [(date: Date, value: Double)] {
+        hk.walkingHeartRateSamples
+            .map { (date: $0.startDate, value: $0.quantity.doubleValue(for: bpmUnit)) }
+            .sorted { $0.date < $1.date }
+    }
+    private var walkingHRAvg: Double { pointsAvg(walkingHRPoints) }
+    private var walkingHRMin: Double { walkingHRPoints.map(\.value).min() ?? 0 }
+    private var walkingHRMax: Double { walkingHRPoints.map(\.value).max() ?? 0 }
 
     // MARK: - Body
 
@@ -153,21 +249,31 @@ struct HealthDebugView: View {
     private var chartsScrollView: some View {
         ScrollView {
             VStack(spacing: 16) {
+                // Existing cards — always shown
                 hrvChartCard
                 sleepChartCard
+                // Tier 1 — hidden when data unavailable on this device
+                if !hk.restingHeartRateSamples.isEmpty { rhrChartCard }
+                if !hk.spo2Samples.isEmpty             { spo2ChartCard }
+                if !hk.respiratoryRateSamples.isEmpty  { respRateChartCard }
+                if !hk.stepSamples.isEmpty             { stepsChartCard }
+                if !hk.vo2MaxSamples.isEmpty           { vo2MaxChartCard }
+                // Tier 2 — hidden when data unavailable on this device
+                if !hk.wristTemperatureSamples.isEmpty { wristTempChartCard }
+                if !hk.timeInDaylightSamples.isEmpty   { daylightChartCard }
+                if !hk.walkingHeartRateSamples.isEmpty { walkingHRChartCard }
             }
             .padding(16)
         }
     }
 
-    // MARK: Graphique VFC
+    // MARK: - HRV chart card
 
     private var hrvChartCard: some View {
         chartCard {
             chartHeader(title: "VFC nocturne", subtitle: "30 derniers jours")
 
             Chart {
-                // Remplissage sous la courbe
                 ForEach(hrvPoints, id: \.date) { p in
                     AreaMark(
                         x: .value("Date", p.date),
@@ -176,7 +282,6 @@ struct HealthDebugView: View {
                     .foregroundStyle(accentGreen.opacity(0.15))
                     .interpolationMethod(.catmullRom)
                 }
-                // Courbe principale
                 ForEach(hrvPoints, id: \.date) { p in
                     LineMark(
                         x: .value("Date", p.date),
@@ -186,7 +291,6 @@ struct HealthDebugView: View {
                     .lineStyle(StrokeStyle(lineWidth: 2))
                     .interpolationMethod(.catmullRom)
                 }
-                // Ligne de base (moyenne 30 j)
                 if hrvAvg > 0 {
                     RuleMark(y: .value("Moyenne", hrvAvg))
                         .foregroundStyle(accentGreen.opacity(0.55))
@@ -228,14 +332,13 @@ struct HealthDebugView: View {
         }
     }
 
-    // MARK: Graphique sommeil
+    // MARK: - Sleep chart card
 
     private var sleepChartCard: some View {
         chartCard {
             chartHeader(title: "Durée de sommeil", subtitle: "30 derniers jours")
 
             Chart {
-                // Barres colorées selon durée
                 ForEach(sleepNights, id: \.date) { n in
                     BarMark(
                         x: .value("Date", n.date, unit: .day),
@@ -244,7 +347,6 @@ struct HealthDebugView: View {
                     .foregroundStyle(colorForSleep(n.hours))
                     .cornerRadius(3)
                 }
-                // Seuil recommandé 7 h
                 RuleMark(y: .value("Recommandé", 7.0))
                     .foregroundStyle(.white.opacity(0.4))
                     .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
@@ -285,7 +387,460 @@ struct HealthDebugView: View {
         }
     }
 
-    // MARK: - Composants partagés
+    // MARK: - Resting Heart Rate chart card
+
+    private var rhrChartCard: some View {
+        chartCard {
+            chartHeader(title: "FC au repos", subtitle: "30 derniers jours · bpm")
+
+            Chart {
+                ForEach(rhrPoints, id: \.date) { p in
+                    AreaMark(x: .value("Date", p.date), y: .value("BPM", p.value))
+                        .foregroundStyle(accentOrange.opacity(0.15))
+                        .interpolationMethod(.catmullRom)
+                }
+                ForEach(rhrPoints, id: \.date) { p in
+                    LineMark(x: .value("Date", p.date), y: .value("BPM", p.value))
+                        .foregroundStyle(accentOrange)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
+                }
+                if rhrAvg > 0 {
+                    RuleMark(y: .value("Moyenne", rhrAvg))
+                        .foregroundStyle(accentOrange.opacity(0.55))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .annotation(position: .top, alignment: .leading, spacing: 3) {
+                            Text(String(format: "Moy. %.0f bpm", rhrAvg))
+                                .font(.caption2).foregroundStyle(accentOrange)
+                        }
+                }
+            }
+            .chartXScale(domain: last30Days)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .foregroundStyle(axisColor)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { v in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel {
+                        if let n = v.as(Double.self) {
+                            Text("\(Int(n))").font(.caption2).foregroundStyle(axisColor)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            statsRow(
+                ("Moyenne", String(format: "%.0f bpm", rhrAvg)),
+                ("Min",     String(format: "%.0f bpm", rhrMin)),
+                ("Max",     String(format: "%.0f bpm", rhrMax))
+            )
+        }
+    }
+
+    // MARK: - SpO2 chart card
+
+    private var spo2ChartCard: some View {
+        chartCard {
+            chartHeader(title: "Saturation en O₂ (SpO₂)", subtitle: "30 derniers jours · %")
+
+            Chart {
+                ForEach(spo2Points, id: \.date) { p in
+                    AreaMark(x: .value("Date", p.date), y: .value("SpO₂", p.value))
+                        .foregroundStyle(accentBlue.opacity(0.15))
+                        .interpolationMethod(.catmullRom)
+                }
+                ForEach(spo2Points, id: \.date) { p in
+                    LineMark(x: .value("Date", p.date), y: .value("SpO₂", p.value))
+                        .foregroundStyle(accentBlue)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
+                }
+                if spo2Avg > 0 {
+                    RuleMark(y: .value("Moyenne", spo2Avg))
+                        .foregroundStyle(accentBlue.opacity(0.55))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .annotation(position: .top, alignment: .leading, spacing: 3) {
+                            Text(String(format: "Moy. %.1f %%", spo2Avg))
+                                .font(.caption2).foregroundStyle(accentBlue)
+                        }
+                }
+            }
+            .chartXScale(domain: last30Days)
+            .chartYScale(domain: 90...100) // narrow range — variation is small
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .foregroundStyle(axisColor)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(values: [90, 92, 94, 96, 98, 100]) { v in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel {
+                        if let n = v.as(Double.self) {
+                            Text("\(Int(n)) %").font(.caption2).foregroundStyle(axisColor)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            statsRow(
+                ("Moyenne", String(format: "%.1f %%", spo2Avg)),
+                ("Min",     String(format: "%.1f %%", spo2Min)),
+                ("Max",     String(format: "%.1f %%", spo2Max))
+            )
+        }
+    }
+
+    // MARK: - Respiratory Rate chart card
+
+    private var respRateChartCard: some View {
+        chartCard {
+            chartHeader(title: "Fréquence respiratoire", subtitle: "30 derniers jours · rpm")
+
+            Chart {
+                ForEach(respRatePoints, id: \.date) { p in
+                    AreaMark(x: .value("Date", p.date), y: .value("rpm", p.value))
+                        .foregroundStyle(accentCyan.opacity(0.15))
+                        .interpolationMethod(.catmullRom)
+                }
+                ForEach(respRatePoints, id: \.date) { p in
+                    LineMark(x: .value("Date", p.date), y: .value("rpm", p.value))
+                        .foregroundStyle(accentCyan)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
+                }
+                if respRateAvg > 0 {
+                    RuleMark(y: .value("Moyenne", respRateAvg))
+                        .foregroundStyle(accentCyan.opacity(0.55))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .annotation(position: .top, alignment: .leading, spacing: 3) {
+                            Text(String(format: "Moy. %.0f rpm", respRateAvg))
+                                .font(.caption2).foregroundStyle(accentCyan)
+                        }
+                }
+            }
+            .chartXScale(domain: last30Days)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .foregroundStyle(axisColor)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { v in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel {
+                        if let n = v.as(Double.self) {
+                            Text("\(Int(n))").font(.caption2).foregroundStyle(axisColor)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            statsRow(
+                ("Moyenne", String(format: "%.0f rpm", respRateAvg)),
+                ("Min",     String(format: "%.0f rpm", respRateMin)),
+                ("Max",     String(format: "%.0f rpm", respRateMax))
+            )
+        }
+    }
+
+    // MARK: - Steps chart card
+
+    private var stepsChartCard: some View {
+        chartCard {
+            chartHeader(title: "Nombre de pas", subtitle: "30 derniers jours")
+
+            Chart {
+                ForEach(stepDays, id: \.date) { d in
+                    BarMark(
+                        x: .value("Date", d.date, unit: .day),
+                        y: .value("Pas", d.value)
+                    )
+                    .foregroundStyle(colorForSteps(d.value))
+                    .cornerRadius(3)
+                }
+                RuleMark(y: .value("Objectif", 10_000))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                    .annotation(position: .top, alignment: .leading, spacing: 3) {
+                        Text("10 000 pas")
+                            .font(.caption2).foregroundStyle(.white.opacity(0.6))
+                    }
+            }
+            .chartXScale(domain: last30Days)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .foregroundStyle(axisColor)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { v in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel {
+                        if let n = v.as(Double.self) {
+                            Text(stepsLabel(n)).font(.caption2).foregroundStyle(axisColor)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            statsRow(
+                ("Moyenne", stepsLabel(stepAvg)),
+                ("Min",     stepsLabel(stepMin)),
+                ("Max",     stepsLabel(stepMax))
+            )
+        }
+    }
+
+    // MARK: - VO2max chart card
+
+    private var vo2MaxChartCard: some View {
+        chartCard {
+            chartHeader(title: "VO₂max", subtitle: "90 derniers jours · ml/kg/min")
+
+            Chart {
+                ForEach(vo2Points, id: \.date) { p in
+                    LineMark(x: .value("Date", p.date), y: .value("VO₂max", p.value))
+                        .foregroundStyle(accentPurple)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
+                }
+                // Point marks highlight sparse weekly measurements
+                ForEach(vo2Points, id: \.date) { p in
+                    PointMark(x: .value("Date", p.date), y: .value("VO₂max", p.value))
+                        .foregroundStyle(accentPurple)
+                        .symbolSize(35)
+                }
+                if vo2Avg > 0 {
+                    RuleMark(y: .value("Moyenne", vo2Avg))
+                        .foregroundStyle(accentPurple.opacity(0.55))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .annotation(position: .top, alignment: .leading, spacing: 3) {
+                            Text(String(format: "Moy. %.1f", vo2Avg))
+                                .font(.caption2).foregroundStyle(accentPurple)
+                        }
+                }
+            }
+            .chartXScale(domain: last90Days)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 14)) { _ in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .foregroundStyle(axisColor)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { v in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel {
+                        if let n = v.as(Double.self) {
+                            Text(String(format: "%.0f", n)).font(.caption2).foregroundStyle(axisColor)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            statsRow(
+                ("Moyenne", String(format: "%.1f ml/kg/min", vo2Avg)),
+                ("Min",     String(format: "%.1f",           vo2Min)),
+                ("Max",     String(format: "%.1f",           vo2Max))
+            )
+        }
+    }
+
+    // MARK: - Wrist Temperature chart card
+
+    private var wristTempChartCard: some View {
+        chartCard {
+            chartHeader(title: "Température poignet (nuit)", subtitle: "Déviation vs baseline · 30 jours")
+
+            Chart {
+                // Neutral zero baseline
+                RuleMark(y: .value("Baseline", 0.0))
+                    .foregroundStyle(.white.opacity(0.2))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+
+                ForEach(wristTempPoints, id: \.date) { p in
+                    LineMark(x: .value("Date", p.date), y: .value("°C", p.value))
+                        .foregroundStyle(accentWarm)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
+                }
+                ForEach(wristTempPoints, id: \.date) { p in
+                    PointMark(x: .value("Date", p.date), y: .value("°C", p.value))
+                        .foregroundStyle(p.value >= 0 ? accentWarm : accentBlue)
+                        .symbolSize(20)
+                }
+            }
+            .chartXScale(domain: last30Days)
+            .chartYScale(domain: -0.6...0.6)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .foregroundStyle(axisColor)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(values: [-0.6, -0.3, 0.0, 0.3, 0.6]) { v in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel {
+                        if let n = v.as(Double.self) {
+                            Text(String(format: "%+.1f °C", n)).font(.caption2).foregroundStyle(axisColor)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            statsRow(
+                ("Moyenne", String(format: "%+.2f °C", wristTempAvg)),
+                ("Min",     String(format: "%+.2f °C", wristTempMin)),
+                ("Max",     String(format: "%+.2f °C", wristTempMax))
+            )
+        }
+    }
+
+    // MARK: - Time in Daylight chart card
+
+    private var daylightChartCard: some View {
+        chartCard {
+            chartHeader(title: "Temps en lumière du jour", subtitle: "30 derniers jours · min")
+
+            Chart {
+                ForEach(daylightDays, id: \.date) { d in
+                    BarMark(
+                        x: .value("Date", d.date, unit: .day),
+                        y: .value("Min", d.value)
+                    )
+                    .foregroundStyle(colorForDaylight(d.value))
+                    .cornerRadius(3)
+                }
+                RuleMark(y: .value("Recommandé", 30.0))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                    .annotation(position: .top, alignment: .leading, spacing: 3) {
+                        Text("30 min recommandées")
+                            .font(.caption2).foregroundStyle(.white.opacity(0.6))
+                    }
+            }
+            .chartXScale(domain: last30Days)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .foregroundStyle(axisColor)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { v in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel {
+                        if let n = v.as(Double.self) {
+                            Text("\(Int(n)) min").font(.caption2).foregroundStyle(axisColor)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            statsRow(
+                ("Moyenne", String(format: "%.0f min", daylightAvg)),
+                ("Min",     String(format: "%.0f min", daylightMin)),
+                ("Max",     String(format: "%.0f min", daylightMax))
+            )
+        }
+    }
+
+    // MARK: - Walking HR chart card
+
+    private var walkingHRChartCard: some View {
+        chartCard {
+            chartHeader(title: "FC moyenne à la marche", subtitle: "30 derniers jours · bpm")
+
+            Chart {
+                ForEach(walkingHRPoints, id: \.date) { p in
+                    AreaMark(x: .value("Date", p.date), y: .value("BPM", p.value))
+                        .foregroundStyle(accentCoral.opacity(0.15))
+                        .interpolationMethod(.catmullRom)
+                }
+                ForEach(walkingHRPoints, id: \.date) { p in
+                    LineMark(x: .value("Date", p.date), y: .value("BPM", p.value))
+                        .foregroundStyle(accentCoral)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
+                }
+                if walkingHRAvg > 0 {
+                    RuleMark(y: .value("Moyenne", walkingHRAvg))
+                        .foregroundStyle(accentCoral.opacity(0.55))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                        .annotation(position: .top, alignment: .leading, spacing: 3) {
+                            Text(String(format: "Moy. %.0f bpm", walkingHRAvg))
+                                .font(.caption2).foregroundStyle(accentCoral)
+                        }
+                }
+            }
+            .chartXScale(domain: last30Days)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .foregroundStyle(axisColor)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { v in
+                    AxisGridLine().foregroundStyle(gridColor)
+                    AxisTick().foregroundStyle(axisColor)
+                    AxisValueLabel {
+                        if let n = v.as(Double.self) {
+                            Text("\(Int(n))").font(.caption2).foregroundStyle(axisColor)
+                        }
+                    }
+                }
+            }
+            .frame(height: 200)
+
+            statsRow(
+                ("Moyenne", String(format: "%.0f bpm", walkingHRAvg)),
+                ("Min",     String(format: "%.0f bpm", walkingHRMin)),
+                ("Max",     String(format: "%.0f bpm", walkingHRMax))
+            )
+        }
+    }
+
+    // MARK: - Shared components
 
     @ViewBuilder
     private func chartCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -361,20 +916,54 @@ struct HealthDebugView: View {
         }
     }
 
-    // MARK: - Constantes visuelles
+    // MARK: - Helpers
 
-    private var accentGreen: Color { Color(red: 0,   green: 0.784, blue: 0.588) } // #00C896
-    private var gridColor:   Color { Color.somiaCardBorder.opacity(0.6) }
-    private var axisColor:   Color { Color.somiaBodyText }
+    private func pointsAvg(_ points: [(date: Date, value: Double)]) -> Double {
+        guard !points.isEmpty else { return 0 }
+        return points.map(\.value).reduce(0, +) / Double(points.count)
+    }
+
+    /// "8 500" below 10 k, "10 k" above — keeps y-axis labels short
+    private func stepsLabel(_ v: Double) -> String {
+        v >= 10_000 ? String(format: "%.0f k", v / 1_000) : "\(Int(v))"
+    }
+
+    // MARK: - Visual constants
+
+    private var accentGreen:  Color { Color(red: 0,     green: 0.784, blue: 0.588) } // #00C896
+    private var accentOrange: Color { Color(red: 1.0,   green: 0.584, blue: 0.0)   } // #FF9500
+    private var accentBlue:   Color { Color(red: 0.196, green: 0.596, blue: 1.0)   } // #3298FF
+    private var accentCyan:   Color { Color(red: 0.196, green: 0.831, blue: 0.922) } // #32D4EB
+    private var accentPurple: Color { Color(red: 0.686, green: 0.322, blue: 0.871) } // #AF52DE
+    private var accentWarm:   Color { Color(red: 1.0,   green: 0.694, blue: 0.286) } // #FFB149
+    private var accentCoral:  Color { Color(red: 1.0,   green: 0.341, blue: 0.471) } // #FF5778
+    private var accentYellow: Color { Color(red: 1.0,   green: 0.8,   blue: 0.0)   } // #FFCC00
+    private var gridColor:    Color { Color.somiaCardBorder.opacity(0.6) }
+    private var axisColor:    Color { Color.somiaBodyText }
 
     private var last30Days: ClosedRange<Date> {
         let now = Date()
         return (Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now)...now
     }
 
+    private var last90Days: ClosedRange<Date> {
+        let now = Date()
+        return (Calendar.current.date(byAdding: .day, value: -90, to: now) ?? now)...now
+    }
+
     private func colorForSleep(_ hours: Double) -> Color {
         if hours < 6 { return Color(red: 1, green: 0.267, blue: 0.267) } // #FF4444
         if hours < 7 { return Color(red: 1, green: 0.584, blue: 0)     } // #FF9500
         return accentGreen                                                 // #00C896
+    }
+
+    private func colorForSteps(_ steps: Double) -> Color {
+        if steps < 5_000  { return Color(red: 1, green: 0.267, blue: 0.267) } // < 5 k  → red
+        if steps < 10_000 { return accentOrange                              } // 5–10 k → orange
+        return accentGreen                                                      // ≥ 10 k → green
+    }
+
+    private func colorForDaylight(_ minutes: Double) -> Color {
+        minutes < 30 ? accentOrange : accentYellow // < 30 min → orange · ≥ 30 min → yellow
     }
 }
