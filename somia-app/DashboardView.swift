@@ -8,6 +8,108 @@
 import SwiftUI
 import HealthKit
 
+// MARK: - RingMetricView
+
+struct RingMetricView: View {
+    let label: String
+    let value: String
+    let progress: Double
+    /// Two colors defining the gradient arc: [startColor, endColor].
+    let gradientColors: [Color]
+
+    private let ringSize: CGFloat = 96
+    private let lineWidth: CGFloat = 13
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                // Background track
+                Circle()
+                    .stroke(Color.white.opacity(0.07), lineWidth: lineWidth)
+                    .frame(width: ringSize, height: ringSize)
+
+                // Progress arc with gradient
+                Circle()
+                    .trim(from: 0, to: CGFloat(max(0, min(1, progress))))
+                    .stroke(
+                        LinearGradient(
+                            colors: gradientColors,
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                    )
+                    .frame(width: ringSize, height: ringSize)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.7), value: progress)
+                    .shadow(color: (gradientColors.last ?? .white).opacity(0.4), radius: 8)
+
+                // Center value
+                Text(value)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .frame(width: ringSize - lineWidth * 2 - 8)
+                    .multilineTextAlignment(.center)
+            }
+            // Subtle depth shadow on the whole ring
+            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 3)
+
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color(red: 0.557, green: 0.557, blue: 0.576)) // #8E8E93
+        }
+    }
+}
+
+// MARK: - MetricCard
+
+struct MetricCard: View {
+    let label: String
+    let value: String
+    let trend: String
+    let trendColor: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(label)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(Color.somiaBodyText)
+                .tracking(0.6)
+
+            Spacer().frame(height: 8)
+
+            Text(value)
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+
+            Spacer()
+
+            // Pill-shaped trend label
+            Text(trend)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundStyle(trendColor)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(trendColor.opacity(0.13))
+                .clipShape(Capsule())
+        }
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .leading)
+        .padding(16)
+        .background(Color.somiaCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.somiaCardBorder, lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - DashboardView
+
 struct DashboardView: View {
 
     // MARK: - Dependencies
@@ -123,37 +225,22 @@ struct DashboardView: View {
         return Color.somiaBodyText
     }
 
-    // MARK: - Metric Trends
+    // MARK: - Ring Progress
 
-    private var hrvTrend: (text: String, color: Color) {
-        guard let hrv = latestHRV, hrvAvg30 > 0 else {
-            return ("Données insuffisantes", Color.somiaBodyText)
-        }
-        let pct = ((hrv - hrvAvg30) / hrvAvg30) * 100
-        if pct >= 10  { return ("Progression forte", .somiaGreenStrong) }
-        if pct >= 3   { return ("Progression",        .somiaGreenSoft) }
-        if pct >= -3  { return ("Stable",              Color.somiaBodyText) }
-        if pct >= -10 { return ("Dérive légère",       Color.somiaWarn) }
-        return ("Baisse forte", .red)
+    private var hrvProgress: Double {
+        guard let hrv = latestHRV, hrvAvg30 > 0 else { return 0 }
+        return min(1.0, max(0.0, hrv / hrvAvg30))
     }
 
-    private var sleepTrend: (text: String, color: Color) {
-        let h = lastNightSleep
-        guard h > 0 else { return ("Données insuffisantes", Color.somiaBodyText) }
-        if h >= 8 { return ("Progression forte", .somiaGreenStrong) }
-        if h >= 7 { return ("Progression",        .somiaGreenSoft) }
-        if h >= 6 { return ("Stable",              Color.somiaBodyText) }
-        if h >= 5 { return ("Dérive légère",       Color.somiaWarn) }
-        return ("Baisse forte", .red)
+    private var sleepProgress: Double {
+        guard lastNightSleep > 0 else { return 0 }
+        return min(1.0, max(0.0, lastNightSleep / 8.0))
     }
 
-    // Mock values for metrics not yet tracked by HealthKitManager (SpO2, resting HR).
-    // These will be replaced once the corresponding HealthKit types are added.
+    // MARK: - Metric Display (mock for untracked metrics)
+
     private var spo2Display: (value: String, trend: String, trendColor: Color) {
         ("98 %", "Stable", Color.somiaBodyText)
-    }
-    private var restingHRDisplay: (value: String, trend: String, trendColor: Color) {
-        ("52 bpm", "Progression", .somiaGreenSoft)
     }
 
     // MARK: - Helpers
@@ -179,7 +266,7 @@ struct DashboardView: View {
                     VStack(spacing: 20) {
                         headerSection
                         physiologicalCard
-                        metricsSection
+                        todaySection
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
@@ -204,7 +291,7 @@ struct DashboardView: View {
                     .foregroundStyle(Color.somiaBodyText)
                     .tracking(1.2)
 
-                Text("Bonjour, Alex")
+                Text("Bonjour Alex")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
@@ -231,7 +318,7 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 18) {
 
             // Section label
-            Text("ÉTAT PHYSIOLOGIQUE")
+            Text("ÉTAT PHYSIOLOGIQUE (1 mois)")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.somiaBodyText)
@@ -294,18 +381,11 @@ struct DashboardView: View {
                 .foregroundStyle(Color.somiaAccent)
             }
         }
-        .padding(20)
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.somiaCard)
-                // Subtle tinted glow based on score
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(cardGlowColor.opacity(0.07))
-            }
-        )
+        .padding(16)
+        .background(Color.somiaCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 16)
                 .stroke(cardGlowColor.opacity(0.22), lineWidth: 1)
         )
     }
@@ -344,87 +424,61 @@ struct DashboardView: View {
         .frame(height: 18)
     }
 
-    // MARK: - "Ce matin" Metrics Grid
+    // MARK: - "Aujourd'hui" Ring Section
 
-    private var metricsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("CE MATIN")
+    private var todaySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("AUJOURD'HUI")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.somiaBodyText)
                 .tracking(1.5)
 
-            LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-                spacing: 12
-            ) {
-                metricCard(
-                    label: "HRV nuit",
+            HStack(spacing: 0) {
+                // HRV — orange gradient (#FFD60A → #FF9F0A)
+                RingMetricView(
+                    label: "Effort",
                     value: latestHRV.map { String(format: "%.0f ms", $0) } ?? "-- ms",
-                    trend: hrvTrend.text,
-                    trendColor: hrvTrend.color
+                    progress: hrvProgress,
+                    gradientColors: [
+                        Color(red: 1.0,   green: 0.839, blue: 0.039),
+                        Color(red: 1.0,   green: 0.624, blue: 0.039)
+                    ]
                 )
-                metricCard(
-                    label: "Sommeil",
+                .frame(maxWidth: .infinity)
+
+                // Sommeil — lavande gradient (#A78BFA → #818CF8)
+                RingMetricView(
+                    label: "Récupération",
                     value: lastNightSleep > 0 ? String(format: "%.1f h", lastNightSleep) : "-- h",
-                    trend: sleepTrend.text,
-                    trendColor: sleepTrend.color
+                    progress: sleepProgress,
+                    gradientColors: [
+                        Color(red: 0.655, green: 0.545, blue: 0.980),
+                        Color(red: 0.506, green: 0.549, blue: 0.973)
+                    ]
                 )
-                metricCard(
-                    label: "SpO2",
+                .frame(maxWidth: .infinity)
+
+                // SpO2 — vert gradient (#86EFAC → #22C55E)
+                RingMetricView(
+                    label: "Sommeil",
                     value: spo2Display.value,
-                    trend: spo2Display.trend,
-                    trendColor: spo2Display.trendColor
+                    progress: 0.98,
+                    gradientColors: [
+                        Color(red: 0.525, green: 0.937, blue: 0.675),
+                        Color(red: 0.133, green: 0.773, blue: 0.369)
+                    ]
                 )
-                metricCard(
-                    label: "Tendance FC",
-                    value: restingHRDisplay.value,
-                    trend: restingHRDisplay.trend,
-                    trendColor: restingHRDisplay.trendColor
-                )
+                .frame(maxWidth: .infinity)
             }
+            .padding(.vertical, 20)
+            .background(Color.somiaCard)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.somiaCardBorder, lineWidth: 1)
+            )
         }
-    }
-
-    private func metricCard(
-        label: String,
-        value: String,
-        trend: String,
-        trendColor: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(label)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(Color.somiaBodyText)
-                .tracking(0.6)
-
-            Spacer().frame(height: 8)
-
-            Text(value)
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-
-            Spacer()
-
-            // Pill-shaped trend label
-            Text(trend)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(trendColor)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 4)
-                .background(trendColor.opacity(0.13))
-                .clipShape(Capsule())
-        }
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .leading)
-        .padding(16)
-        .background(Color.somiaCard)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.somiaCardBorder, lineWidth: 1)
-        )
     }
 }
 
