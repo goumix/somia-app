@@ -4,8 +4,32 @@ import HealthKit
 // Disponible uniquement sur le simulateur
 #if targetEnvironment(simulator)
 
+// MARK: - MockPreset
+
+enum MockPreset: CaseIterable {
+    case allDrift, stable, allProgression, sleepOnly, mentalOverload
+
+    var label: String {
+        switch self {
+        case .allDrift:       return "Tout en dérive"
+        case .stable:         return "Stable"
+        case .allProgression: return "En progression"
+        case .sleepOnly:      return "Sommeil seul KO"
+        case .mentalOverload: return "Surcharge mentale"
+        }
+    }
+}
+
+// MARK: - HealthKitManagerMock
+
 @Observable
 final class HealthKitManagerMock: HealthKitManaging {
+
+    // MARK: - Mock Scenarios (-1.0 dérive … +1.0 progression)
+    var hrvScenario:   Double = 0
+    var sleepScenario: Double = 0
+    var rhrScenario:   Double = 0
+    var spo2Scenario:  Double = 0
 
     var hrvSamples: [HKQuantitySample] = []
     var sleepSamples: [HKCategorySample] = []
@@ -49,22 +73,38 @@ final class HealthKitManagerMock: HealthKitManaging {
     func fetchData() async {
         isLoading = true
         try? await Task.sleep(for: .milliseconds(600))
-        hrvSamples = Self.makeHRVSamples()
-        sleepSamples = Self.makeSleepSamples()
-        restingHeartRateSamples = Self.makeRestingHeartRateSamples()
-        spo2Samples = Self.makeSpO2Samples()
-        respiratoryRateSamples = Self.makeRespiratoryRateSamples()
-        stepSamples = Self.makeStepSamples()
-        vo2MaxSamples = Self.makeVO2MaxSamples()
-        wristTemperatureSamples = Self.makeWristTemperatureSamples()
-        timeInDaylightSamples = Self.makeTimeInDaylightSamples()
-        walkingHeartRateSamples = Self.makeWalkingHeartRateSamples()
+        hrvSamples               = Self.makeHRVSamples(scenario: hrvScenario)
+        sleepSamples             = Self.makeSleepSamples(scenario: sleepScenario)
+        restingHeartRateSamples  = Self.makeRestingHeartRateSamples(scenario: rhrScenario)
+        spo2Samples              = Self.makeSpO2Samples(scenario: spo2Scenario)
+        respiratoryRateSamples   = Self.makeRespiratoryRateSamples()
+        stepSamples              = Self.makeStepSamples()
+        vo2MaxSamples            = Self.makeVO2MaxSamples()
+        wristTemperatureSamples  = Self.makeWristTemperatureSamples()
+        timeInDaylightSamples    = Self.makeTimeInDaylightSamples()
+        walkingHeartRateSamples  = Self.makeWalkingHeartRateSamples()
         isLoading = false
+    }
+
+    func applyPreset(_ preset: MockPreset) async {
+        switch preset {
+        case .allDrift:
+            (hrvScenario, sleepScenario, rhrScenario, spo2Scenario) = (-1, -1, -1, -1)
+        case .stable:
+            (hrvScenario, sleepScenario, rhrScenario, spo2Scenario) = (0, 0, 0, 0)
+        case .allProgression:
+            (hrvScenario, sleepScenario, rhrScenario, spo2Scenario) = (1, 1, 1, 1)
+        case .sleepOnly:
+            (hrvScenario, sleepScenario, rhrScenario, spo2Scenario) = (0, -1, 0, 0)
+        case .mentalOverload:
+            (hrvScenario, sleepScenario, rhrScenario, spo2Scenario) = (-1, -0.5, -0.5, 0)
+        }
+        await fetchData()
     }
 
     // MARK: - HRV — 90 jours, 35–65 ms, dérive à la baisse sur les 14 derniers jours
 
-    private static func makeHRVSamples() -> [HKQuantitySample] {
+    private static func makeHRVSamples(scenario: Double = 0) -> [HKQuantitySample] {
         let calendar = Calendar.current
         let today    = calendar.startOfDay(for: Date())
         let type     = HKQuantityType(.heartRateVariabilitySDNN)
@@ -91,6 +131,9 @@ final class HealthKitManagerMock: HealthKitManaging {
                 hrv -= Double(offset - 76) * 0.29
             }
 
+            // Scenario adjustment: ±10 ms global shift
+            hrv += scenario * 10.0
+
             samples.append(HKQuantitySample(
                 type: type,
                 quantity: HKQuantity(unit: unit, doubleValue: max(20, min(80, hrv))),
@@ -104,7 +147,7 @@ final class HealthKitManagerMock: HealthKitManaging {
 
     // MARK: - Sleep — 90 nuits, 5 h 30 – 9 h, phases aléatoires
 
-    private static func makeSleepSamples() -> [HKCategorySample] {
+    private static func makeSleepSamples(scenario: Double = 0) -> [HKCategorySample] {
         let calendar = Calendar.current
         let today    = calendar.startOfDay(for: Date())
         let type     = HKCategoryType(.sleepAnalysis)
@@ -121,8 +164,8 @@ final class HealthKitManagerMock: HealthKitManaging {
                     second: 0, of: day)
             else { continue }
 
-            // Durée totale : 5 h 30 – 9 h  (330 – 540 min)
-            let totalMin = Int.random(in: 330...540, using: &rng)
+            // Durée totale : 5 h 30 – 9 h  (330 – 540 min) ± scenario (±60 min)
+            let totalMin = max(180, Int.random(in: 330...540, using: &rng) + Int(scenario * 60))
             let wakeTime = bedTime.addingTimeInterval(Double(totalMin) * 60)
 
             // Segment global « Au lit »
@@ -192,7 +235,7 @@ final class HealthKitManagerMock: HealthKitManaging {
 
     // MARK: - Tier 1 — Resting Heart Rate — 30 days, 55–65 bpm, slight downward trend
 
-    private static func makeRestingHeartRateSamples() -> [HKQuantitySample] {
+    private static func makeRestingHeartRateSamples(scenario: Double = 0) -> [HKQuantitySample] {
         let calendar = Calendar.current
         let today    = calendar.startOfDay(for: Date())
         let type     = HKQuantityType(.restingHeartRate)
@@ -216,9 +259,12 @@ final class HealthKitManagerMock: HealthKitManaging {
                 rhr -= Double(offset - 20) * 0.2
             }
 
+            // Scenario: lower RHR = progression (+), higher RHR = drift (-)
+            rhr -= scenario * 5.0
+
             samples.append(HKQuantitySample(
                 type: type,
-                quantity: HKQuantity(unit: unit, doubleValue: max(52, min(68, rhr))),
+                quantity: HKQuantity(unit: unit, doubleValue: max(45, min(80, rhr))),
                 start: start,
                 end: end
             ))
@@ -229,7 +275,7 @@ final class HealthKitManagerMock: HealthKitManaging {
 
     // MARK: - Tier 1 — SpO2 — 30 days, 96–99 %
 
-    private static func makeSpO2Samples() -> [HKQuantitySample] {
+    private static func makeSpO2Samples(scenario: Double = 0) -> [HKQuantitySample] {
         let calendar = Calendar.current
         let today    = calendar.startOfDay(for: Date())
         let type     = HKQuantityType(.oxygenSaturation)
@@ -247,7 +293,8 @@ final class HealthKitManagerMock: HealthKitManaging {
                 let end   = calendar.date(byAdding: .minute, value: 2, to: start)
             else { continue }
 
-            let spo2 = Double.random(in: 0.96...0.99, using: &rng)
+            // Scenario: ±1 % shift
+            let spo2 = min(1.0, max(0.92, Double.random(in: 0.96...0.99, using: &rng) + scenario * 0.01))
 
             samples.append(HKQuantitySample(
                 type: type,

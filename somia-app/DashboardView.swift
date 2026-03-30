@@ -120,6 +120,8 @@ struct DashboardView: View {
     @State private var hk: any HealthKitManaging = HealthKitManager.shared
     #endif
 
+    @State private var showSettings = false
+
     private let msUnit = HKUnit.secondUnit(with: .milli)
 
     // MARK: - Computed: HRV
@@ -279,6 +281,13 @@ struct DashboardView: View {
         .task {
             await hk.requestAuthorization()
         }
+        .sheet(isPresented: $showSettings) {
+            #if targetEnvironment(simulator)
+            SettingsView(mock: hk as! HealthKitManagerMock)
+            #else
+            SettingsView()
+            #endif
+        }
     }
 
     // MARK: - Header Section
@@ -301,15 +310,18 @@ struct DashboardView: View {
 
             Spacer()
 
-            // Avatar with initial
-            ZStack {
-                Circle()
-                    .fill(Color.somiaAccent.opacity(0.15))
-                    .frame(width: 48, height: 48)
-                Text("A")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(Color.somiaAccent)
+            // Avatar — tap opens Settings
+            Button { showSettings = true } label: {
+                ZStack {
+                    Circle()
+                        .fill(Color.somiaAccent.opacity(0.15))
+                        .frame(width: 48, height: 48)
+                    Text("A")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color.somiaAccent)
+                }
             }
+            .buttonStyle(.plain)
         }
         .padding(.top, 8)
     }
