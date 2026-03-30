@@ -154,22 +154,80 @@ struct SettingsView: View {
 
     #if targetEnvironment(simulator)
 
+    // MARK: Score preview helpers
+
+    private var previewScore: Int {
+        Int(min(100, max(-100, mock.hrvScoreContribution + mock.sleepScoreContribution)))
+    }
+
+    private var previewScoreLabel: String {
+        switch previewScore {
+        case 55...100:    return "En progression forte"
+        case 20...54:     return "En progression"
+        case -15...19:    return "Stable"
+        case -45 ... -16: return "En dérive légère"
+        case -70 ... -46: return "En dérive modérée"
+        default:          return "En dérive sévère"
+        }
+    }
+
+    private var previewScoreColor: Color {
+        switch previewScore {
+        case 20...:      return Color.somiaAccent
+        case -45 ... -1: return Color.somiaWarn
+        default:         return .red
+        }
+    }
+
+    // MARK: Mock section
+
     private var mockDataSection: some View {
         let bindable = Bindable(mock)
         return Section {
-            // Scenario sliders
-            scenarioRow(label: "HRV",      value: bindable.hrvScenario)
-            scenarioRow(label: "Sommeil",  value: bindable.sleepScenario)
-            scenarioRow(label: "FC repos", value: bindable.rhrScenario)
-            scenarioRow(label: "SpO2",     value: bindable.spo2Scenario)
 
-            // Apply button
+            // ── Score preview ──────────────────────────────────────────────
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Score prévu")
+                        .font(.caption)
+                        .foregroundStyle(Color.somiaBodyText)
+                    Text(previewScoreLabel)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(previewScoreColor)
+                }
+                Spacer()
+                Text(previewScore >= 0 ? "+\(previewScore)" : "\(previewScore)")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(previewScoreColor)
+            }
+            .padding(.vertical, 4)
+            .listRowBackground(Color.somiaCard)
+
+            // ── Profils prédéfinis ─────────────────────────────────────────
+            profilesGrid
+                .listRowBackground(Color.somiaCard)
+                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+
+            // ── Sliders de contribution ────────────────────────────────────
+            contributionRow(
+                label: "HRV",
+                subtitle: latestHRVLabel,
+                value: bindable.hrvScoreContribution
+            )
+            contributionRow(
+                label: "Sommeil",
+                subtitle: sleepHoursLabel,
+                value: bindable.sleepScoreContribution
+            )
+
+            // ── Bouton Appliquer ───────────────────────────────────────────
             Button {
                 Task { await mock.fetchData() }
             } label: {
                 HStack {
                     Spacer()
-                    Text("Appliquer les scénarios")
+                    Text("Appliquer")
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.somiaAccent)
                     Spacer()
@@ -177,38 +235,76 @@ struct SettingsView: View {
             }
             .listRowBackground(Color.somiaCard)
 
-            // Presets grid
-            presetsGrid
-                .listRowBackground(Color.somiaCard)
-                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-
         } header: {
             sectionHeader("MOCK DATA")
         }
     }
 
-    private func scenarioRow(label: String, value: Binding<Double>) -> some View {
+    // Grille 2 colonnes des profils physiologiques
+    private var profilesGrid: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionHeader("PROFILS")
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                spacing: 8
+            ) {
+                ForEach(PhysioProfile.allCases, id: \.self) { profile in
+                    let isSelected = mock.hrvScoreContribution == profile.hrvContrib
+                                  && mock.sleepScoreContribution == profile.sleepContrib
+                    Button {
+                        mock.hrvScoreContribution   = profile.hrvContrib
+                        mock.sleepScoreContribution = profile.sleepContrib
+                    } label: {
+                        VStack(spacing: 2) {
+                            Text(profile.label)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundStyle(isSelected ? Color.somiaBackground : .white)
+                                .multilineTextAlignment(.center)
+                            Text(profile.totalScore >= 0 ? "+\(profile.totalScore)" : "\(profile.totalScore)")
+                                .font(.caption2)
+                                .foregroundStyle(isSelected ? Color.somiaBackground.opacity(0.7) : Color.somiaBodyText)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(isSelected ? Color.somiaAccent : Color.somiaCardBorder)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // Slider d'une contribution avec label live
+    private func contributionRow(label: String, subtitle: String, value: Binding<Double>) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(label)
-                    .font(.subheadline)
-                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(label)
+                        .font(.subheadline)
+                        .foregroundStyle(.white)
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(Color.somiaBodyText)
+                }
                 Spacer()
-                Text(scenarioLabel(value.wrappedValue))
+                Text(contributionLabel(value.wrappedValue))
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundStyle(scenarioColor(value.wrappedValue))
+                    .foregroundStyle(contributionColor(value.wrappedValue))
+                    .frame(width: 90, alignment: .trailing)
             }
 
-            Slider(value: value, in: -1...1, step: 0.5)
-                .tint(scenarioColor(value.wrappedValue))
+            Slider(value: value, in: -50...50, step: 1)
+                .tint(contributionColor(value.wrappedValue))
 
             HStack {
-                Text("Dérive")
+                Text("−50 pts  dérive")
                     .font(.caption2)
                     .foregroundStyle(Color.somiaBodyText)
                 Spacer()
-                Text("Progression")
+                Text("progression  +50 pts")
                     .font(.caption2)
                     .foregroundStyle(Color.somiaBodyText)
             }
@@ -217,49 +313,35 @@ struct SettingsView: View {
         .listRowBackground(Color.somiaCard)
     }
 
-    private var presetsGrid: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("PRESETS")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.somiaBodyText)
-                .tracking(1.2)
+    // Label live de la valeur HRV simulée
+    private var latestHRVLabel: String {
+        // avg89 ≈ 50ms (valeur approchée deterministe, assez précise pour l'affichage)
+        let avg: Double = 50.0
+        let c = max(-0.99, min(0.99, mock.hrvScoreContribution / 200.0))
+        let n: Double = 89
+        let latest = n * avg * (1 + c) / (n - c)
+        return String(format: "≈ %.0f ms", max(15, min(120, latest)))
+    }
 
-            LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
-                spacing: 8
-            ) {
-                ForEach(MockPreset.allCases, id: \.self) { preset in
-                    Button {
-                        Task { await mock.applyPreset(preset) }
-                    } label: {
-                        Text(preset.label)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .background(Color.somiaCardBorder)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+    // Label live des heures de sommeil simulées
+    private var sleepHoursLabel: String {
+        let h = max(2.0, min(12.0, 7.5 + mock.sleepScoreContribution / 12.5))
+        return String(format: "≈ %.1f h", h)
+    }
+
+    private func contributionLabel(_ pts: Double) -> String {
+        let v = Int(pts)
+        switch pts {
+        case ..<(-30): return "\(v) pts  Dérive forte"
+        case ..<(-10): return "\(v) pts  Dérive"
+        case 10...:    return "+\(v) pts  \(pts > 30 ? "Progression forte" : "Progression")"
+        default:       return "\(v) pts  Stable"
         }
     }
 
-    private func scenarioLabel(_ value: Double) -> String {
-        switch value {
-        case ..<(-0.7): return "Dérive forte"
-        case ..<(-0.2): return "Dérive légère"
-        case 0.2...:    return value > 0.7 ? "Progression forte" : "Progression"
-        default:        return "Stable"
-        }
-    }
-
-    private func scenarioColor(_ value: Double) -> Color {
-        if value < -0.2 { return Color.somiaWarn }
-        if value > 0.2  { return Color.somiaAccent }
+    private func contributionColor(_ pts: Double) -> Color {
+        if pts < -10 { return Color.somiaWarn }
+        if pts > 10  { return Color.somiaAccent }
         return Color.somiaBodyText
     }
 
