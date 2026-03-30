@@ -267,6 +267,8 @@ struct DashboardView: View {
                         headerSection
                         physiologicalCard
                         todaySection
+                        physiologicalCardMonths
+                        physiologicalCardYear
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
@@ -312,82 +314,84 @@ struct DashboardView: View {
         .padding(.top, 8)
     }
 
-    // MARK: - Physiological State Card
+    // MARK: - Physiological State Card 1 month
 
     private var physiologicalCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-
+        VStack(alignment: .leading, spacing: 16) {
+            
             // Section label
             Text("ÉTAT PHYSIOLOGIQUE (1 mois)")
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.somiaBodyText)
                 .tracking(1.5)
-
-            // Score + arrows + label
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                (Text(compositeScore >= 0 ? "+" : "") + Text("\(compositeScore)"))
-                    .font(.system(size: 58, weight: .bold, design: .rounded))
-                    .foregroundStyle(scoreInfo.color)
-
-                Text(scoreArrows)
-                    .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(scoreInfo.color)
-
-                Spacer()
-
-                Text(scoreInfo.label)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(scoreInfo.color)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 140, alignment: .trailing)
-            }
-
-            // Non-interactive progress bar with axis labels
-            VStack(alignment: .leading, spacing: 6) {
-                scoreProgressBar
-
-                HStack {
-                    Text("−100 dérive")
-                        .font(.caption2)
-                        .foregroundStyle(Color.somiaBodyText)
+            
+            VStack(alignment: .leading, spacing: 16) {
+                // Score + arrows + label
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    (Text(compositeScore >= 0 ? "+" : "") + Text("\(compositeScore)"))
+                        .font(.system(size: 58, weight: .bold, design: .rounded))
+                        .foregroundStyle(scoreInfo.color)
+                    
+                    Text(scoreArrows)
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundStyle(scoreInfo.color)
+                    
                     Spacer()
-                    Text("+100 progression")
-                        .font(.caption2)
-                        .foregroundStyle(Color.somiaBodyText)
-                }
-            }
-
-            Rectangle()
-                .fill(Color.somiaCardBorder)
-                .frame(height: 1)
-
-            // Contextual insight
-            Text(insightText)
-                .font(.subheadline)
-                .foregroundStyle(Color.somiaBodyText)
-                .lineSpacing(5)
-                .fixedSize(horizontal: false, vertical: true)
-
-            // Navigation CTA — pushes HealthDebugView onto the NavigationStack
-            NavigationLink(destination: HealthDebugView()) {
-                HStack(spacing: 5) {
-                    Text("Voir la tendance")
+                    
+                    Text(scoreInfo.label)
+                        .font(.subheadline)
                         .fontWeight(.semibold)
-                    Image(systemName: "arrow.right")
+                        .foregroundStyle(scoreInfo.color)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 140, alignment: .trailing)
                 }
-                .font(.subheadline)
-                .foregroundStyle(Color.somiaAccent)
+                
+                // Non-interactive progress bar with axis labels
+                VStack(alignment: .leading, spacing: 6) {
+                    scoreProgressBar
+                    
+                    HStack {
+                        Text("−100 dérive")
+                            .font(.caption2)
+                            .foregroundStyle(Color.somiaBodyText)
+                        Spacer()
+                        Text("+100 progression")
+                            .font(.caption2)
+                            .foregroundStyle(Color.somiaBodyText)
+                    }
+                }
+                
+                Rectangle()
+                    .fill(Color.somiaCardBorder)
+                    .frame(height: 1)
+                
+                // Contextual insight
+                Text(insightText)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.somiaBodyText)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                // Navigation CTA — pushes HealthDebugView onto the NavigationStack
+                NavigationLink(destination: HealthDebugView()) {
+                    HStack(spacing: 5) {
+                        Text("Voir la tendance")
+                            .fontWeight(.semibold)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(Color.somiaAccent)
+                }
             }
+            .padding(16)
+            .background(Color.somiaCard)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(cardGlowColor.opacity(0.22), lineWidth: 1)
+            )
         }
-        .padding(16)
-        .background(Color.somiaCard)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(cardGlowColor.opacity(0.22), lineWidth: 1)
-        )
     }
 
     /// Horizontal gradient bar with a white thumb positioned at the current score.
@@ -480,7 +484,236 @@ struct DashboardView: View {
             )
         }
     }
+    
+    // MARK: - Physiological State Card 3 months
+
+    private var physiologicalCardMonths: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            
+            // Section label
+            Text("ÉTAT PHYSIOLOGIQUE (3 mois)")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.somiaBodyText)
+                .tracking(1.5)
+            
+            VStack(alignment: .leading, spacing: 16) {
+                // Score + arrows + label
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    (Text(compositeScore >= 0 ? "+" : "") + Text("\(compositeScore)"))
+                        .font(.system(size: 58, weight: .bold, design: .rounded))
+                        .foregroundStyle(scoreInfo.color)
+                    
+                    Text(scoreArrows)
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundStyle(scoreInfo.color)
+                    
+                    Spacer()
+                    
+                    Text(scoreInfo.label)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(scoreInfo.color)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 140, alignment: .trailing)
+                }
+                
+                // Non-interactive progress bar with axis labels
+                VStack(alignment: .leading, spacing: 6) {
+                    scoreProgressBar
+                    
+                    HStack {
+                        Text("−100 dérive")
+                            .font(.caption2)
+                            .foregroundStyle(Color.somiaBodyText)
+                        Spacer()
+                        Text("+100 progression")
+                            .font(.caption2)
+                            .foregroundStyle(Color.somiaBodyText)
+                    }
+                }
+                
+                Rectangle()
+                    .fill(Color.somiaCardBorder)
+                    .frame(height: 1)
+                
+                // Contextual insight
+                Text(insightText)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.somiaBodyText)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                // Navigation CTA — pushes HealthDebugView onto the NavigationStack
+                NavigationLink(destination: HealthDebugView()) {
+                    HStack(spacing: 5) {
+                        Text("Voir la tendance")
+                            .fontWeight(.semibold)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(Color.somiaAccent)
+                }
+            }
+            .padding(16)
+            .background(Color.somiaCard)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(cardGlowColor.opacity(0.22), lineWidth: 1)
+            )
+        }
+    }
+
+    /// Horizontal gradient bar with a white thumb positioned at the current score.
+    private var scoreProgressBarMonths: some View {
+        GeometryReader { proxy in
+            let thumbSize: CGFloat = 18
+            let usableWidth = proxy.size.width - thumbSize
+            let position = CGFloat(compositeScore + 100) / 200.0 * usableWidth
+
+            ZStack(alignment: .leading) {
+                // Gradient track: red (drift) → neutral → green (progression)
+                LinearGradient(
+                    colors: [
+                        .red,
+                        Color.somiaWarn,
+                        Color(red: 0.35, green: 0.35, blue: 0.40),
+                        .somiaGreenSoft,
+                        .somiaGreenStrong
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(height: 8)
+                .clipShape(Capsule())
+
+                // Thumb indicator
+                Circle()
+                    .fill(.white)
+                    .frame(width: thumbSize, height: thumbSize)
+                    .shadow(color: scoreInfo.color.opacity(0.55), radius: 5)
+                    .offset(x: position)
+            }
+        }
+        .frame(height: 18)
+    }
+    
+    // MARK: - Physiological State Card 1 year
+
+    private var physiologicalCardYear: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            
+            // Section label
+            Text("ÉTAT PHYSIOLOGIQUE (1 an)")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.somiaBodyText)
+                .tracking(1.5)
+            
+            VStack(alignment: .leading, spacing: 16) {
+                // Score + arrows + label
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    (Text(compositeScore >= 0 ? "+" : "") + Text("\(compositeScore)"))
+                        .font(.system(size: 58, weight: .bold, design: .rounded))
+                        .foregroundStyle(scoreInfo.color)
+                    
+                    Text(scoreArrows)
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundStyle(scoreInfo.color)
+                    
+                    Spacer()
+                    
+                    Text(scoreInfo.label)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(scoreInfo.color)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 140, alignment: .trailing)
+                }
+                
+                // Non-interactive progress bar with axis labels
+                VStack(alignment: .leading, spacing: 6) {
+                    scoreProgressBar
+                    
+                    HStack {
+                        Text("−100 dérive")
+                            .font(.caption2)
+                            .foregroundStyle(Color.somiaBodyText)
+                        Spacer()
+                        Text("+100 progression")
+                            .font(.caption2)
+                            .foregroundStyle(Color.somiaBodyText)
+                    }
+                }
+                
+                Rectangle()
+                    .fill(Color.somiaCardBorder)
+                    .frame(height: 1)
+                
+                // Contextual insight
+                Text(insightText)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.somiaBodyText)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                // Navigation CTA — pushes HealthDebugView onto the NavigationStack
+                NavigationLink(destination: HealthDebugView()) {
+                    HStack(spacing: 5) {
+                        Text("Voir la tendance")
+                            .fontWeight(.semibold)
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(Color.somiaAccent)
+                }
+            }
+            .padding(16)
+            .background(Color.somiaCard)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(cardGlowColor.opacity(0.22), lineWidth: 1)
+            )
+        }
+    }
+
+    /// Horizontal gradient bar with a white thumb positioned at the current score.
+    private var scoreProgressBarYear: some View {
+        GeometryReader { proxy in
+            let thumbSize: CGFloat = 18
+            let usableWidth = proxy.size.width - thumbSize
+            let position = CGFloat(compositeScore + 100) / 200.0 * usableWidth
+
+            ZStack(alignment: .leading) {
+                // Gradient track: red (drift) → neutral → green (progression)
+                LinearGradient(
+                    colors: [
+                        .red,
+                        Color.somiaWarn,
+                        Color(red: 0.35, green: 0.35, blue: 0.40),
+                        .somiaGreenSoft,
+                        .somiaGreenStrong
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(height: 8)
+                .clipShape(Capsule())
+
+                // Thumb indicator
+                Circle()
+                    .fill(.white)
+                    .frame(width: thumbSize, height: thumbSize)
+                    .shadow(color: scoreInfo.color.opacity(0.55), radius: 5)
+                    .offset(x: position)
+            }
+        }
+        .frame(height: 18)
+    }
 }
+
 
 // MARK: - Theme Colors (Dashboard-specific)
 
