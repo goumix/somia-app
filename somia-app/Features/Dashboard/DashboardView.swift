@@ -107,6 +107,19 @@ struct MetricCard: View {
     }
 }
 
+// MARK: - Score Color (module-level — shared with detail views)
+
+/// Maps a 0–100 score to theme colors: somiaDrift (<40) → somiaWarn (<70) → somiaAccent (≥70).
+func scoreColor(for score: Double) -> Color {
+    switch score {
+    case ..<40: return .somiaDrift
+    case ..<70: return .somiaWarn
+    default:    return .somiaAccent
+    }
+}
+
+let ringNeutralColor: Color = .somiaBodyText
+
 // MARK: - DashboardView
 
 struct DashboardView: View {
@@ -231,41 +244,44 @@ struct DashboardView: View {
                 .tracking(1.5)
 
             HStack(spacing: 0) {
-                // HRV — orange gradient (#FFD60A → #FF9F0A)
-                RingMetricView(
-                    label: "Effort",
-                    value: vm.latestHRV.map { String(format: "%.0f ms", $0) } ?? "-- ms",
-                    progress: vm.hrvProgress,
-                    gradientColors: [
-                        Color(red: 1.0,   green: 0.839, blue: 0.039),
-                        Color(red: 1.0,   green: 0.624, blue: 0.039)
-                    ]
-                )
-                .frame(maxWidth: .infinity)
+                // Effort — HRV normalisé 0–100 (100 ms → score 100)
+                NavigationLink(destination: EffortDetailView()) {
+                    let effortColor = vm.hrvScore.map { scoreColor(for: $0) } ?? ringNeutralColor
+                    RingMetricView(
+                        label: "Effort",
+                        value: vm.hrvScore.map { "\(Int($0))" } ?? "--",
+                        progress: vm.hrvProgress,
+                        gradientColors: [effortColor, effortColor]
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
 
-                // Sommeil — lavande gradient (#A78BFA → #818CF8)
-                RingMetricView(
-                    label: "Récupération",
-                    value: vm.lastNightSleep > 0 ? String(format: "%.1f h", vm.lastNightSleep) : "-- h",
-                    progress: vm.sleepProgress,
-                    gradientColors: [
-                        Color(red: 0.655, green: 0.545, blue: 0.980),
-                        Color(red: 0.506, green: 0.549, blue: 0.973)
-                    ]
-                )
-                .frame(maxWidth: .infinity)
+                // Récupération — sommeil normalisé 0–100 (9 h → score 100)
+                NavigationLink(destination: RecoveryDetailView()) {
+                    let recoveryColor = vm.sleepScore.map { scoreColor(for: $0) } ?? ringNeutralColor
+                    RingMetricView(
+                        label: "Récupération",
+                        value: vm.sleepScore.map { "\(Int($0))" } ?? "--",
+                        progress: vm.sleepProgress,
+                        gradientColors: [recoveryColor, recoveryColor]
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
 
-                // SpO2 — vert gradient (#86EFAC → #22C55E)
-                RingMetricView(
-                    label: "Sommeil",
-                    value: vm.spo2Display.value,
-                    progress: 0.98,
-                    gradientColors: [
-                        Color(red: 0.525, green: 0.937, blue: 0.675),
-                        Color(red: 0.133, green: 0.773, blue: 0.369)
-                    ]
-                )
-                .frame(maxWidth: .infinity)
+                // Sommeil — SpO2 exprimé en score 0–100
+                NavigationLink(destination: SleepDetailView()) {
+                    let sleepColor = vm.spo2Score.map { scoreColor(for: $0) } ?? ringNeutralColor
+                    RingMetricView(
+                        label: "Sommeil",
+                        value: vm.spo2Score.map { "\(Int($0))" } ?? "--",
+                        progress: (vm.spo2Score ?? 0) / 100.0,
+                        gradientColors: [sleepColor, sleepColor]
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
             }
             .padding(.vertical, 20)
             .background(Color.somiaCard)

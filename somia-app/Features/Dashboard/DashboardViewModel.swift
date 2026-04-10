@@ -83,17 +83,27 @@ final class DashboardViewModel {
         return Int(min(100, max(-100, score)))
     }
 
+    // MARK: - Normalized Scores (0–100)
+
+    /// HRV mapped to 0–100. 100 ms → score 100 (capped).
+    var hrvScore: Double? {
+        latestHRV.map { min($0 / 100.0, 1.0) * 100 }
+    }
+
+    /// Sleep duration mapped to 0–100. 9 h → score 100 (capped).
+    var sleepScore: Double? {
+        guard lastNightSleep > 0 else { return nil }
+        return min(lastNightSleep / 9.0, 1.0) * 100
+    }
+
+    /// SpO2 is already in % — exposed as a 0–100 score.
+    var spo2Score: Double? { 98.0 }
+
     // MARK: - Ring Progress
 
-    var hrvProgress: Double {
-        guard let hrv = latestHRV, hrvAvg30 > 0 else { return 0 }
-        return min(1.0, max(0.0, hrv / hrvAvg30))
-    }
+    var hrvProgress: Double { (hrvScore ?? 0) / 100.0 }
 
-    var sleepProgress: Double {
-        guard lastNightSleep > 0 else { return 0 }
-        return min(1.0, max(0.0, lastNightSleep / 8.0))
-    }
+    var sleepProgress: Double { (sleepScore ?? 0) / 100.0 }
 
     // MARK: - Metric Display
 
