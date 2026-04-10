@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import HealthKit
 
 // MARK: - RingMetricView
 
@@ -112,91 +111,15 @@ struct MetricCard: View {
 
 struct DashboardView: View {
 
-    // MARK: - Dependencies
+    // MARK: - ViewModel
 
     #if targetEnvironment(simulator)
-    @State private var hk: any HealthKitManaging = HealthKitManagerMock()
+    @State private var vm = DashboardViewModel(healthKit: HealthKitManagerMock())
     #else
-    @State private var hk: any HealthKitManaging = HealthKitManager.shared
+    @State private var vm = DashboardViewModel()
     #endif
 
     @State private var showSettings = false
-
-    private let msUnit = HKUnit.secondUnit(with: .milli)
-
-    // MARK: - Computed: HRV
-
-    /// Most recent HRV sample (samples are sorted descending by date).
-    private var latestHRV: Double? {
-        hk.hrvSamples.first.map { $0.quantity.doubleValue(for: msUnit) }
-    }
-
-    /// 30-day HRV mean used as baseline for scoring.
-    private var hrvAvg30: Double {
-        guard !hk.hrvSamples.isEmpty else { return 0 }
-        let values = hk.hrvSamples.map { $0.quantity.doubleValue(for: msUnit) }
-        return values.reduce(0, +) / Double(values.count)
-    }
-
-    // MARK: - Computed: Sleep
-
-    /// Total sleep duration for the most recent night (in hours).
-    private var lastNightSleep: Double {
-        let calendar = Calendar.current
-        let actualSleepStates: Set<Int> = [
-            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
-            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue
-        ]
-        var byNight: [Date: Double] = [:]
-        for sample in hk.sleepSamples where actualSleepStates.contains(sample.value) {
-            let night = calendar.startOfDay(for: sample.startDate)
-            byNight[night, default: 0] += sample.endDate.timeIntervalSince(sample.startDate) / 3600
-        }
-        return byNight.sorted { $0.key > $1.key }.first?.value ?? 0
-    }
-
-    // MARK: - Computed: Composite Score
-
-    /// Composite physiological drift score in [-100, +100].
-    /// HRV contributes ±50 pts (based on deviation from 30-day mean).
-    /// Sleep contributes ±50 pts (based on deviation from 7.5 h baseline).
-    private var compositeScore: Int {
-        var score: Double = 0
-
-        if let hrv = latestHRV, hrvAvg30 > 0 {
-            let ratio = (hrv - hrvAvg30) / hrvAvg30
-            // Scale: a 25 % deviation equals ±50 pts
-            score += min(50, max(-50, ratio * 200))
-        }
-
-        let sleep = lastNightSleep
-        if sleep > 0 {
-            // +50 at 11.5 h, -50 at 3.5 h, 0 at 7.5 h baseline
-            score += min(50, max(-50, (sleep - 7.5) * 12.5))
-        }
-
-        return Int(min(100, max(-100, score)))
-    }
-
-    // MARK: - Ring Progress
-
-    private var hrvProgress: Double {
-        guard let hrv = latestHRV, hrvAvg30 > 0 else { return 0 }
-        return min(1.0, max(0.0, hrv / hrvAvg30))
-    }
-
-    private var sleepProgress: Double {
-        guard lastNightSleep > 0 else { return 0 }
-        return min(1.0, max(0.0, lastNightSleep / 8.0))
-    }
-
-    // MARK: - Metric Display (mock for untracked metrics)
-
-    private var spo2Display: (value: String, trend: String, trendColor: Color) {
-        ("98 %", "Stable", Color.somiaBodyText)
-    }
 
     // MARK: - Helpers
 
@@ -213,7 +136,7 @@ struct DashboardView: View {
         ZStack {
             Color.somiaBackground.ignoresSafeArea()
 
-            if hk.isLoading {
+            if vm.isLoading {
                 ProgressView()
                     .tint(Color.somiaAccent)
             } else {
@@ -222,7 +145,7 @@ struct DashboardView: View {
                         headerSection
                         todaySection
                         cardGroupLabel("ÉTAT PHYSIOLOGIQUE · 1 MOIS")
-                        DriftScoreCard(compositeScore: compositeScore)
+                        DriftScoreCard(compositeScore: vm.compositeScore)
                         cardGroupLabel("ÉVOLUTION · 3 MOIS")
                         DriftEvolutionCard()
                         cardGroupLabel("TRAJECTOIRE · 1 AN")
@@ -235,11 +158,11 @@ struct DashboardView: View {
             }
         }
         .task {
-            await hk.requestAuthorization()
+            await vm.requestAuthorization()
         }
         .sheet(isPresented: $showSettings) {
             #if targetEnvironment(simulator)
-            SettingsView(mock: hk as! HealthKitManagerMock)
+            SettingsView(mock: vm.healthKit as! HealthKitManagerMock)
             #else
             SettingsView()
             #endif
@@ -307,8 +230,8 @@ struct DashboardView: View {
                 // HRV — orange gradient (#FFD60A → #FF9F0A)
                 RingMetricView(
                     label: "Effort",
-                    value: latestHRV.map { String(format: "%.0f ms", $0) } ?? "-- ms",
-                    progress: hrvProgress,
+                    value: vm.latestHRV.map { String(format: "%.0f ms", $0) } ?? "-- ms",
+                    progress: vm.hrvProgress,
                     gradientColors: [
                         Color(red: 1.0,   green: 0.839, blue: 0.039),
                         Color(red: 1.0,   green: 0.624, blue: 0.039)
@@ -319,8 +242,8 @@ struct DashboardView: View {
                 // Sommeil — lavande gradient (#A78BFA → #818CF8)
                 RingMetricView(
                     label: "Récupération",
-                    value: lastNightSleep > 0 ? String(format: "%.1f h", lastNightSleep) : "-- h",
-                    progress: sleepProgress,
+                    value: vm.lastNightSleep > 0 ? String(format: "%.1f h", vm.lastNightSleep) : "-- h",
+                    progress: vm.sleepProgress,
                     gradientColors: [
                         Color(red: 0.655, green: 0.545, blue: 0.980),
                         Color(red: 0.506, green: 0.549, blue: 0.973)
@@ -331,7 +254,7 @@ struct DashboardView: View {
                 // SpO2 — vert gradient (#86EFAC → #22C55E)
                 RingMetricView(
                     label: "Sommeil",
-                    value: spo2Display.value,
+                    value: vm.spo2Display.value,
                     progress: 0.98,
                     gradientColors: [
                         Color(red: 0.525, green: 0.937, blue: 0.675),
