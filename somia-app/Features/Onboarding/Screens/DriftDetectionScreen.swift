@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DriftDetectionScreen: View {
-    let onContinue: () -> Void
+    @Environment(OnboardingCoordinator.self) private var coordinator
     @State private var appeared = false
 
     var body: some View {
@@ -48,7 +48,7 @@ struct DriftDetectionScreen: View {
 
                 Spacer()
 
-                OnboardingCTAButton(title: "Continuer", action: onContinue)
+                OnboardingCTAButton(title: "Continuer", action: { coordinator.navigate(to: .baseline) })
                     .padding(.horizontal, 24)
                     .padding(.bottom, 52)
                     .opacity(appeared ? 1.0 : 0.0)
@@ -126,6 +126,7 @@ private struct PulseRing: View {
 #Preview {
     ZStack {
         Color.somiaBackground.ignoresSafeArea()
-        DriftDetectionScreen(onContinue: {})
+        DriftDetectionScreen()
+            .environment(OnboardingCoordinator())
     }
 }

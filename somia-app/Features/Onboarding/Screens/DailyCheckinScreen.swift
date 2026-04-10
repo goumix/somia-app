@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct DailyCheckinScreen: View {
-    let onContinue: () -> Void
+    @Environment(OnboardingCoordinator.self) private var coordinator
     @State private var appeared = false
 
     var body: some View {
@@ -48,7 +48,7 @@ struct DailyCheckinScreen: View {
 
                 Spacer()
 
-                OnboardingCTAButton(title: "Continuer", action: onContinue)
+                OnboardingCTAButton(title: "Continuer", action: { coordinator.navigate(to: .permissions) })
                     .padding(.horizontal, 24)
                     .padding(.bottom, 52)
                     .opacity(appeared ? 1.0 : 0.0)
@@ -171,6 +171,7 @@ private struct PhoneMockupView: View {
 #Preview {
     ZStack {
         Color.somiaBackground.ignoresSafeArea()
-        DailyCheckinScreen(onContinue: {})
+        DailyCheckinScreen()
+            .environment(OnboardingCoordinator())
     }
 }

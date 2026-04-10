@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PaywallScreen: View {
-    let onContinue: () -> Void
+    @Environment(OnboardingCoordinator.self) private var coordinator
     @State private var selectedPlan: PlanType = .annual
     @State private var appeared = false
 
@@ -102,7 +102,7 @@ struct PaywallScreen: View {
                     .animation(.easeOut(duration: 0.55).delay(0.18), value: appeared)
 
                     // CTA
-                    OnboardingCTAButton(title: "Commencer l'essai gratuit", action: onContinue)
+                    OnboardingCTAButton(title: "Commencer l'essai gratuit", action: coordinator.completeOnboarding)
                         .padding(.horizontal, 24)
                         .opacity(appeared ? 1.0 : 0.0)
                         .animation(.easeOut(duration: 0.55).delay(0.22), value: appeared)
@@ -134,6 +134,7 @@ struct PaywallScreen: View {
 #Preview {
     ZStack {
         Color.somiaBackground.ignoresSafeArea()
-        PaywallScreen(onContinue: {})
+        PaywallScreen()
+            .environment(OnboardingCoordinator())
     }
 }

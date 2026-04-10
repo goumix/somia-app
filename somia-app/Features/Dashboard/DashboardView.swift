@@ -133,41 +133,44 @@ struct DashboardView: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack {
-            Color.somiaBackground.ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                Color.somiaBackground.ignoresSafeArea()
 
-            if let vm {
-                if vm.isLoading {
-                    ProgressView()
-                        .tint(Color.somiaAccent)
-                } else {
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 20) {
-                            headerSection(vm: vm)
-                            todaySection(vm: vm)
-                            cardGroupLabel("ÉTAT PHYSIOLOGIQUE · 1 MOIS")
-                            DriftScoreCard(compositeScore: vm.compositeScore)
-                            cardGroupLabel("ÉVOLUTION · 3 MOIS")
-                            DriftEvolutionCard()
-                            cardGroupLabel("TRAJECTOIRE · 1 AN")
-                            DriftYearCard()
+                if let vm {
+                    if vm.isLoading {
+                        ProgressView()
+                            .tint(Color.somiaAccent)
+                    } else {
+                        ScrollView(showsIndicators: false) {
+                            VStack(spacing: 20) {
+                                headerSection(vm: vm)
+                                todaySection(vm: vm)
+                                cardGroupLabel("ÉTAT PHYSIOLOGIQUE · 1 MOIS")
+                                DriftScoreCard(compositeScore: vm.compositeScore)
+                                cardGroupLabel("ÉVOLUTION · 3 MOIS")
+                                DriftEvolutionCard()
+                                cardGroupLabel("TRAJECTOIRE · 1 AN")
+                                DriftYearCard()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 16)
+                            .padding(.bottom, 40)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                        .padding(.bottom, 40)
                     }
                 }
             }
-        }
-        .task {
-            if vm == nil {
-                vm = DashboardViewModel(healthKit: healthKit)
+            .task {
+                if vm == nil {
+                    vm = DashboardViewModel(healthKit: healthKit)
+                }
+                await vm?.requestAuthorization()
             }
-            await vm?.requestAuthorization()
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+            }
         }
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-        }
+        .tint(Color.somiaAccent)
     }
 
     // MARK: - Header Section

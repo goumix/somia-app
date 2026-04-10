@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WelcomeScreen: View {
-    let onContinue: () -> Void
+    @Environment(OnboardingCoordinator.self) private var coordinator
     @State private var appeared = false
 
     var body: some View {
@@ -49,7 +49,7 @@ struct WelcomeScreen: View {
 
                 Spacer()
 
-                OnboardingCTAButton(title: "Commencer", action: onContinue)
+                OnboardingCTAButton(title: "Commencer", action: { coordinator.navigate(to: .driftDetection) })
                     .padding(.horizontal, 24)
                     .padding(.bottom, 52)
                     .opacity(appeared ? 1.0 : 0.0)
@@ -143,6 +143,7 @@ private struct OrganicIllustration: View {
 #Preview {
     ZStack {
         Color.somiaBackground.ignoresSafeArea()
-        WelcomeScreen(onContinue: {})
+        WelcomeScreen()
+            .environment(OnboardingCoordinator())
     }
 }

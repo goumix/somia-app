@@ -7,11 +7,18 @@
 
 import SwiftUI
 
-// Main app container — NavigationStack with DashboardView as root.
 struct ContentView: View {
     var body: some View {
-        NavigationStack {
+        TabView {
             DashboardView()
+                .tabItem {
+                    Label("Accueil", systemImage: "house.fill")
+                }
+
+            ToolsView()
+                .tabItem {
+                    Label("Outils", systemImage: "wrench.and.screwdriver.fill")
+                }
         }
         .tint(Color.somiaAccent)
     }

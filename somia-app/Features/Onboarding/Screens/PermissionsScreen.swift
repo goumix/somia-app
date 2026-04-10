@@ -2,9 +2,9 @@ import SwiftUI
 import HealthKit
 
 struct PermissionsScreen: View {
-    let onContinue: () -> Void
-    @State private var appeared = false
+    @Environment(OnboardingCoordinator.self) private var coordinator
     @Environment(\.healthKit) private var healthKit
+    @State private var appeared = false
 
     var body: some View {
         ZStack {
@@ -85,7 +85,7 @@ struct PermissionsScreen: View {
                 OnboardingCTAButton(title: "Autoriser l'accès", action: {
                     Task {
                         await healthKit.requestAuthorization()
-                        onContinue()
+                        coordinator.navigate(to: .paywall)
                     }
                 })
                 .padding(.horizontal, 24)
@@ -106,6 +106,7 @@ struct PermissionsScreen: View {
 #Preview {
     ZStack {
         Color.somiaBackground.ignoresSafeArea()
-        PermissionsScreen(onContinue: {})
+        PermissionsScreen()
+            .environment(OnboardingCoordinator())
     }
 }
