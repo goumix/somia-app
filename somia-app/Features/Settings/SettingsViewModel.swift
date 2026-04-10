@@ -12,11 +12,11 @@ final class SettingsViewModel {
 
     // MARK: - Dependencies
 
-    private let healthKit: HealthKitManaging
+    private let healthKit: any HealthKitManaging
 
     // MARK: - Init
 
-    init(healthKit: HealthKitManaging = HealthKitManager.shared) {
+    init(healthKit: any HealthKitManaging) {
         self.healthKit = healthKit
     }
 

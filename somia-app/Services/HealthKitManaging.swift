@@ -1,8 +1,9 @@
 import HealthKit
 import Observation
+import SwiftUI
 
 /// Interface commune à HealthKitManager et HealthKitManagerMock.
-/// Utilisée pour l'injection de dépendance via #if targetEnvironment(simulator).
+/// Injecté via .environment(\.healthKit) depuis somia_appApp.
 protocol HealthKitManaging: AnyObject, Observable {
     var hrvSamples: [HKQuantitySample] { get }
     var sleepSamples: [HKCategorySample] { get }
@@ -25,4 +26,17 @@ protocol HealthKitManaging: AnyObject, Observable {
 
     func requestAuthorization() async
     func fetchData() async
+}
+
+// MARK: - EnvironmentKey
+
+private struct HealthKitEnvironmentKey: EnvironmentKey {
+    static var defaultValue: any HealthKitManaging = HealthKitManager()
+}
+
+extension EnvironmentValues {
+    var healthKit: any HealthKitManaging {
+        get { self[HealthKitEnvironmentKey.self] }
+        set { self[HealthKitEnvironmentKey.self] = newValue }
+    }
 }

@@ -12,21 +12,12 @@ struct SettingsView: View {
     // MARK: - Environment
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.healthKit) private var healthKit
 
     // MARK: - State
 
     @AppStorage("userName") private var userName: String = "Alex"
-
-    // MARK: - ViewModel
-
-    #if targetEnvironment(simulator)
-    @State private var vm: SettingsViewModel
-    init(mock: HealthKitManagerMock) {
-        _vm = State(wrappedValue: SettingsViewModel(healthKit: mock))
-    }
-    #else
-    @State private var vm = SettingsViewModel()
-    #endif
+    @State private var vm: SettingsViewModel?
 
     // MARK: - Body
 
@@ -39,7 +30,7 @@ struct SettingsView: View {
                     profileHeaderSection
 
                     #if targetEnvironment(simulator)
-                    mockDataSection
+                    if let vm { mockDataSection(vm: vm) }
                     #endif
 
                     personalizeSection
@@ -58,6 +49,11 @@ struct SettingsView: View {
                             .foregroundStyle(Color.somiaBodyText)
                     }
                 }
+            }
+        }
+        .task {
+            if vm == nil {
+                vm = SettingsViewModel(healthKit: healthKit)
             }
         }
     }
@@ -126,7 +122,7 @@ struct SettingsView: View {
             sectionHeader("PARAMÈTRES")
         }
     }
-    
+
     // MARK: - Share Section
 
     private var shareSection: some View {
@@ -138,7 +134,7 @@ struct SettingsView: View {
             Label("Linkedin", systemImage: "person.fill")
                 .foregroundStyle(.white)
                 .listRowBackground(Color.somiaCard)
-            
+
             .listRowBackground(Color.somiaCard)
         } header: {
             sectionHeader("S'impliquer")
@@ -159,9 +155,7 @@ struct SettingsView: View {
 
     #if targetEnvironment(simulator)
 
-    // MARK: Mock section
-
-    private var mockDataSection: some View {
+    private func mockDataSection(vm: SettingsViewModel) -> some View {
         let bindable = Bindable(vm)
         return Section {
 
@@ -185,7 +179,7 @@ struct SettingsView: View {
             .listRowBackground(Color.somiaCard)
 
             // ── Profils prédéfinis ─────────────────────────────────────────
-            profilesGrid
+            profilesGrid(vm: vm)
                 .listRowBackground(Color.somiaCard)
                 .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
 
@@ -193,11 +187,13 @@ struct SettingsView: View {
             contributionRow(
                 label: "HRV",
                 subtitle: vm.latestHRVLabel,
+                vm: vm,
                 value: bindable.hrvScoreContribution
             )
             contributionRow(
                 label: "Sommeil",
                 subtitle: vm.sleepHoursLabel,
+                vm: vm,
                 value: bindable.sleepScoreContribution
             )
 
@@ -220,8 +216,7 @@ struct SettingsView: View {
         }
     }
 
-    // Grille 2 colonnes des profils physiologiques
-    private var profilesGrid: some View {
+    private func profilesGrid(vm: SettingsViewModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("PROFILS")
             LazyVGrid(
@@ -256,8 +251,12 @@ struct SettingsView: View {
         }
     }
 
-    // Slider d'une contribution avec label live (UI helper — reste dans la View)
-    private func contributionRow(label: String, subtitle: String, value: Binding<Double>) -> some View {
+    private func contributionRow(
+        label: String,
+        subtitle: String,
+        vm: SettingsViewModel,
+        value: Binding<Double>
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 VStack(alignment: .leading, spacing: 1) {
@@ -300,7 +299,8 @@ struct SettingsView: View {
 
 #Preview {
     #if targetEnvironment(simulator)
-    SettingsView(mock: HealthKitManagerMock())
+    SettingsView()
+        .environment(\.healthKit, HealthKitManagerMock())
     #else
     SettingsView()
     #endif

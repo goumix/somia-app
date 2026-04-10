@@ -4,13 +4,13 @@ import Charts
 
 struct HealthDebugView: View {
 
+    // MARK: - Environment
+
+    @Environment(\.healthKit) private var healthKit
+
     // MARK: - ViewModel
 
-    #if targetEnvironment(simulator)
-    @State private var vm = HealthDebugViewModel(healthKit: HealthKitManagerMock())
-    #else
-    @State private var vm = HealthDebugViewModel()
-    #endif
+    @State private var vm: HealthDebugViewModel?
 
     @State private var viewMode: ViewMode = .table
 
@@ -23,18 +23,19 @@ struct HealthDebugView: View {
 
     var body: some View {
         ZStack {
-                Color.somiaBackground.ignoresSafeArea()
+            Color.somiaBackground.ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    Picker("", selection: $viewMode) {
-                        ForEach(ViewMode.allCases, id: \.self) {
-                            Text($0.rawValue).tag($0)
-                        }
+            VStack(spacing: 0) {
+                Picker("", selection: $viewMode) {
+                    ForEach(ViewMode.allCases, id: \.self) {
+                        Text($0.rawValue).tag($0)
                     }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
 
+                if let vm {
                     if vm.isLoading {
                         Spacer()
                         ProgressView().tint(Color.somiaAccent)
@@ -42,32 +43,38 @@ struct HealthDebugView: View {
                     } else {
                         Group {
                             if viewMode == .table {
-                                tableView
+                                tableView(vm: vm)
                             } else {
-                                chartsScrollView
+                                chartsScrollView(vm: vm)
                             }
                         }
                         .animation(.easeInOut, value: viewMode)
                     }
                 }
             }
-            .navigationTitle("Debug HealthKit")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Actualiser") {
-                        Task { await vm.fetchData() }
-                    }
-                    .foregroundStyle(Color.somiaAccent)
+        }
+        .navigationTitle("Debug HealthKit")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Actualiser") {
+                    Task { await vm?.fetchData() }
                 }
+                .foregroundStyle(Color.somiaAccent)
             }
-            .task { await vm.fetchData() }
+        }
+        .task {
+            if vm == nil {
+                vm = HealthDebugViewModel(healthKit: healthKit)
+            }
+            await vm?.fetchData()
+        }
     }
 
-    // MARK: - Vue tableau (inchangée)
+    // MARK: - Vue tableau
 
-    private var tableView: some View {
+    private func tableView(vm: HealthDebugViewModel) -> some View {
         List {
             Section("Statut") {
                 row("Disponible", vm.isAvailable ? "Oui" : "Non")
@@ -107,22 +114,22 @@ struct HealthDebugView: View {
 
     // MARK: - Vue graphiques
 
-    private var chartsScrollView: some View {
+    private func chartsScrollView(vm: HealthDebugViewModel) -> some View {
         ScrollView {
             VStack(spacing: 16) {
                 // Existing cards — always shown
-                hrvChartCard
-                sleepChartCard
+                hrvChartCard(vm: vm)
+                sleepChartCard(vm: vm)
                 // Tier 1 — hidden when data unavailable on this device
-                if !vm.rhrPoints.isEmpty       { rhrChartCard }
-                if !vm.spo2Points.isEmpty      { spo2ChartCard }
-                if !vm.respRatePoints.isEmpty  { respRateChartCard }
-                if !vm.stepDays.isEmpty        { stepsChartCard }
-                if !vm.vo2Points.isEmpty       { vo2MaxChartCard }
+                if !vm.rhrPoints.isEmpty       { rhrChartCard(vm: vm) }
+                if !vm.spo2Points.isEmpty      { spo2ChartCard(vm: vm) }
+                if !vm.respRatePoints.isEmpty  { respRateChartCard(vm: vm) }
+                if !vm.stepDays.isEmpty        { stepsChartCard(vm: vm) }
+                if !vm.vo2Points.isEmpty       { vo2MaxChartCard(vm: vm) }
                 // Tier 2 — hidden when data unavailable on this device
-                if !vm.wristTempPoints.isEmpty { wristTempChartCard }
-                if !vm.daylightDays.isEmpty    { daylightChartCard }
-                if !vm.walkingHRPoints.isEmpty { walkingHRChartCard }
+                if !vm.wristTempPoints.isEmpty { wristTempChartCard(vm: vm) }
+                if !vm.daylightDays.isEmpty    { daylightChartCard(vm: vm) }
+                if !vm.walkingHRPoints.isEmpty { walkingHRChartCard(vm: vm) }
             }
             .padding(16)
         }
@@ -130,7 +137,7 @@ struct HealthDebugView: View {
 
     // MARK: - HRV chart card
 
-    private var hrvChartCard: some View {
+    private func hrvChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "VFC nocturne", subtitle: "30 derniers jours")
 
@@ -195,7 +202,7 @@ struct HealthDebugView: View {
 
     // MARK: - Sleep chart card
 
-    private var sleepChartCard: some View {
+    private func sleepChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "Durée de sommeil", subtitle: "30 derniers jours")
 
@@ -250,7 +257,7 @@ struct HealthDebugView: View {
 
     // MARK: - Resting Heart Rate chart card
 
-    private var rhrChartCard: some View {
+    private func rhrChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "FC au repos", subtitle: "30 derniers jours · bpm")
 
@@ -308,7 +315,7 @@ struct HealthDebugView: View {
 
     // MARK: - SpO2 chart card
 
-    private var spo2ChartCard: some View {
+    private func spo2ChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "Saturation en O₂ (SpO₂)", subtitle: "30 derniers jours · %")
 
@@ -335,7 +342,7 @@ struct HealthDebugView: View {
                 }
             }
             .chartXScale(domain: vm.last30Days)
-            .chartYScale(domain: 90...100) // narrow range — variation is small
+            .chartYScale(domain: 90...100)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .day, count: 7)) { _ in
                     AxisGridLine().foregroundStyle(gridColor)
@@ -367,7 +374,7 @@ struct HealthDebugView: View {
 
     // MARK: - Respiratory Rate chart card
 
-    private var respRateChartCard: some View {
+    private func respRateChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "Fréquence respiratoire", subtitle: "30 derniers jours · rpm")
 
@@ -425,7 +432,7 @@ struct HealthDebugView: View {
 
     // MARK: - Steps chart card
 
-    private var stepsChartCard: some View {
+    private func stepsChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "Nombre de pas", subtitle: "30 derniers jours")
 
@@ -478,7 +485,7 @@ struct HealthDebugView: View {
 
     // MARK: - VO2max chart card
 
-    private var vo2MaxChartCard: some View {
+    private func vo2MaxChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "VO₂max", subtitle: "90 derniers jours · ml/kg/min")
 
@@ -489,7 +496,6 @@ struct HealthDebugView: View {
                         .lineStyle(StrokeStyle(lineWidth: 2))
                         .interpolationMethod(.catmullRom)
                 }
-                // Point marks highlight sparse weekly measurements
                 ForEach(vm.vo2Points, id: \.date) { p in
                     PointMark(x: .value("Date", p.date), y: .value("VO₂max", p.value))
                         .foregroundStyle(accentPurple)
@@ -537,12 +543,11 @@ struct HealthDebugView: View {
 
     // MARK: - Wrist Temperature chart card
 
-    private var wristTempChartCard: some View {
+    private func wristTempChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "Température poignet (nuit)", subtitle: "Déviation vs baseline · 30 jours")
 
             Chart {
-                // Neutral zero baseline
                 RuleMark(y: .value("Baseline", 0.0))
                     .foregroundStyle(.white.opacity(0.2))
                     .lineStyle(StrokeStyle(lineWidth: 1))
@@ -592,7 +597,7 @@ struct HealthDebugView: View {
 
     // MARK: - Time in Daylight chart card
 
-    private var daylightChartCard: some View {
+    private func daylightChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "Temps en lumière du jour", subtitle: "30 derniers jours · min")
 
@@ -645,7 +650,7 @@ struct HealthDebugView: View {
 
     // MARK: - Walking HR chart card
 
-    private var walkingHRChartCard: some View {
+    private func walkingHRChartCard(vm: HealthDebugViewModel) -> some View {
         chartCard {
             chartHeader(title: "FC moyenne à la marche", subtitle: "30 derniers jours · bpm")
 
@@ -701,7 +706,7 @@ struct HealthDebugView: View {
         }
     }
 
-    // MARK: - Shared components
+    // MARK: - Shared components (no vm dependency)
 
     @ViewBuilder
     private func chartCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -765,15 +770,15 @@ struct HealthDebugView: View {
         }
     }
 
-    // MARK: - Visual constants (UI-only, stay in View)
+    // MARK: - Visual constants (UI-only, no vm dependency)
 
-    private var accentGreen:  Color { Color(red: 0,     green: 0.784, blue: 0.588) } // #00C896
-    private var accentOrange: Color { Color(red: 1.0,   green: 0.584, blue: 0.0)   } // #FF9500
-    private var accentBlue:   Color { Color(red: 0.196, green: 0.596, blue: 1.0)   } // #3298FF
-    private var accentCyan:   Color { Color(red: 0.196, green: 0.831, blue: 0.922) } // #32D4EB
-    private var accentPurple: Color { Color(red: 0.686, green: 0.322, blue: 0.871) } // #AF52DE
-    private var accentWarm:   Color { Color(red: 1.0,   green: 0.694, blue: 0.286) } // #FFB149
-    private var accentCoral:  Color { Color(red: 1.0,   green: 0.341, blue: 0.471) } // #FF5778
+    private var accentGreen:  Color { Color(red: 0,     green: 0.784, blue: 0.588) }
+    private var accentOrange: Color { Color(red: 1.0,   green: 0.584, blue: 0.0)   }
+    private var accentBlue:   Color { Color(red: 0.196, green: 0.596, blue: 1.0)   }
+    private var accentCyan:   Color { Color(red: 0.196, green: 0.831, blue: 0.922) }
+    private var accentPurple: Color { Color(red: 0.686, green: 0.322, blue: 0.871) }
+    private var accentWarm:   Color { Color(red: 1.0,   green: 0.694, blue: 0.286) }
+    private var accentCoral:  Color { Color(red: 1.0,   green: 0.341, blue: 0.471) }
     private var gridColor:    Color { Color.somiaCardBorder.opacity(0.6) }
     private var axisColor:    Color { Color.somiaBodyText }
 }

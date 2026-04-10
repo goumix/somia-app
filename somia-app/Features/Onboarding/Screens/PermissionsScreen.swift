@@ -4,6 +4,7 @@ import HealthKit
 struct PermissionsScreen: View {
     let onContinue: () -> Void
     @State private var appeared = false
+    @Environment(\.healthKit) private var healthKit
 
     var body: some View {
         ZStack {
@@ -83,7 +84,7 @@ struct PermissionsScreen: View {
 
                 OnboardingCTAButton(title: "Autoriser l'accès", action: {
                     Task {
-                        await HealthKitManager.shared.requestAuthorization()
+                        await healthKit.requestAuthorization()
                         onContinue()
                     }
                 })

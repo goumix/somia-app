@@ -111,13 +111,13 @@ struct MetricCard: View {
 
 struct DashboardView: View {
 
+    // MARK: - Environment
+
+    @Environment(\.healthKit) private var healthKit
+
     // MARK: - ViewModel
 
-    #if targetEnvironment(simulator)
-    @State private var vm = DashboardViewModel(healthKit: HealthKitManagerMock())
-    #else
-    @State private var vm = DashboardViewModel()
-    #endif
+    @State private var vm: DashboardViewModel?
 
     @State private var showSettings = false
 
@@ -136,42 +136,43 @@ struct DashboardView: View {
         ZStack {
             Color.somiaBackground.ignoresSafeArea()
 
-            if vm.isLoading {
-                ProgressView()
-                    .tint(Color.somiaAccent)
-            } else {
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        headerSection
-                        todaySection
-                        cardGroupLabel("ÉTAT PHYSIOLOGIQUE · 1 MOIS")
-                        DriftScoreCard(compositeScore: vm.compositeScore)
-                        cardGroupLabel("ÉVOLUTION · 3 MOIS")
-                        DriftEvolutionCard()
-                        cardGroupLabel("TRAJECTOIRE · 1 AN")
-                        DriftYearCard()
+            if let vm {
+                if vm.isLoading {
+                    ProgressView()
+                        .tint(Color.somiaAccent)
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 20) {
+                            headerSection(vm: vm)
+                            todaySection(vm: vm)
+                            cardGroupLabel("ÉTAT PHYSIOLOGIQUE · 1 MOIS")
+                            DriftScoreCard(compositeScore: vm.compositeScore)
+                            cardGroupLabel("ÉVOLUTION · 3 MOIS")
+                            DriftEvolutionCard()
+                            cardGroupLabel("TRAJECTOIRE · 1 AN")
+                            DriftYearCard()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                        .padding(.bottom, 40)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
-                    .padding(.bottom, 40)
                 }
             }
         }
         .task {
-            await vm.requestAuthorization()
+            if vm == nil {
+                vm = DashboardViewModel(healthKit: healthKit)
+            }
+            await vm?.requestAuthorization()
         }
         .sheet(isPresented: $showSettings) {
-            #if targetEnvironment(simulator)
-            SettingsView(mock: vm.healthKit as! HealthKitManagerMock)
-            #else
             SettingsView()
-            #endif
         }
     }
 
     // MARK: - Header Section
 
-    private var headerSection: some View {
+    private func headerSection(vm: DashboardViewModel) -> some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 5) {
                 // Date in small caps style
@@ -218,7 +219,7 @@ struct DashboardView: View {
 
     // MARK: - "Aujourd'hui" Ring Section
 
-    private var todaySection: some View {
+    private func todaySection(vm: DashboardViewModel) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("AUJOURD'HUI")
                 .font(.caption)

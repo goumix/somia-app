@@ -30,7 +30,7 @@ final class HealthKitManager: HealthKitManaging {
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
-    private init() {}
+    init() {}
 
     // MARK: - Authorization
 

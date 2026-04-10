@@ -13,13 +13,11 @@ final class DashboardViewModel {
 
     // MARK: - Dependencies
 
-    // `internal` (not private) so DashboardView can forward the mock to SettingsView
-    // on the simulator — the only caller is the #if targetEnvironment(simulator) block.
-    let healthKit: HealthKitManaging
+    private let healthKit: any HealthKitManaging
 
     // MARK: - Init
 
-    init(healthKit: HealthKitManaging = HealthKitManager.shared) {
+    init(healthKit: any HealthKitManaging) {
         self.healthKit = healthKit
     }
 
