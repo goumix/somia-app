@@ -91,6 +91,25 @@ final class HealthKitManagerMock: HealthKitManaging {
     var timeInDaylightSamples: [HKQuantitySample] = []
     var walkingHeartRateSamples: [HKQuantitySample] = []
 
+    // MARK: - Three months
+
+    var hrvThreeMonthsSamples: [HKQuantitySample] = []
+
+    var hrvThreeMonthsValidWeekCount: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        var count = 0
+        for weekOffset in 0..<13 {
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: now),
+                  let interval = calendar.dateInterval(of: .weekOfYear, for: weekStart) else { continue }
+            let samplesInWeek = hrvThreeMonthsSamples.filter {
+                $0.startDate >= interval.start && $0.startDate < interval.end
+            }
+            if samplesInWeek.count >= 5 { count += 1 }
+        }
+        return count
+    }
+
     // MARK: - Yearly
 
     var hrvYearlySamples: [HKQuantitySample] = []
@@ -118,10 +137,11 @@ final class HealthKitManagerMock: HealthKitManaging {
         respiratoryRateSamples  = Self.makeRespiratoryRateSamples()
         stepSamples             = Self.makeStepSamples()
         vo2MaxSamples           = Self.makeVO2MaxSamples()
-        wristTemperatureSamples = Self.makeWristTemperatureSamples()
-        timeInDaylightSamples   = Self.makeTimeInDaylightSamples()
-        walkingHeartRateSamples = Self.makeWalkingHeartRateSamples()
-        hrvYearlySamples        = Self.makeHRVYearlySamples()
+        wristTemperatureSamples  = Self.makeWristTemperatureSamples()
+        timeInDaylightSamples    = Self.makeTimeInDaylightSamples()
+        walkingHeartRateSamples  = Self.makeWalkingHeartRateSamples()
+        hrvThreeMonthsSamples    = Self.makeHRVThreeMonthsSamples()
+        hrvYearlySamples         = Self.makeHRVYearlySamples()
     }
 
     @MainActor func requestAuthorization() async {
@@ -139,10 +159,11 @@ final class HealthKitManagerMock: HealthKitManaging {
         respiratoryRateSamples  = Self.makeRespiratoryRateSamples()
         stepSamples             = Self.makeStepSamples()
         vo2MaxSamples           = Self.makeVO2MaxSamples()
-        wristTemperatureSamples = Self.makeWristTemperatureSamples()
-        timeInDaylightSamples   = Self.makeTimeInDaylightSamples()
-        walkingHeartRateSamples = Self.makeWalkingHeartRateSamples()
-        hrvYearlySamples        = Self.makeHRVYearlySamples()
+        wristTemperatureSamples  = Self.makeWristTemperatureSamples()
+        timeInDaylightSamples    = Self.makeTimeInDaylightSamples()
+        walkingHeartRateSamples  = Self.makeWalkingHeartRateSamples()
+        hrvThreeMonthsSamples    = Self.makeHRVThreeMonthsSamples()
+        hrvYearlySamples         = Self.makeHRVYearlySamples()
         isLoading = false
     }
 
@@ -546,6 +567,44 @@ final class HealthKitManagerMock: HealthKitManaging {
                 quantity: HKQuantity(unit: unit, doubleValue: Double.random(in: 90...105, using: &rng)),
                 start: start, end: end
             ))
+        }
+
+        return samples.sorted { $0.startDate > $1.startDate }
+    }
+
+    // MARK: - Three-month HRV — 6 samples per week, 13 weeks (all weeks sufficient)
+
+    /// Generates 6 nightly HRV samples for each of the past 13 calendar weeks,
+    /// evenly spread across each week. Every week exceeds the 5-sample threshold
+    /// so `isSufficient` is true for all weeks in the evolution card.
+    private static func makeHRVThreeMonthsSamples() -> [HKQuantitySample] {
+        let calendar = Calendar.current
+        let now = Date()
+        let type = HKQuantityType(.heartRateVariabilitySDNN)
+        let unit = HKUnit.secondUnit(with: .milli)
+        var rng = SeededRNG(seed: 0xC0CA_C01A)
+
+        var samples: [HKQuantitySample] = []
+
+        for weekOffset in 0..<13 {
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: now),
+                  let interval = calendar.dateInterval(of: .weekOfYear, for: weekStart) else { continue }
+
+            for sampleIndex in 0..<6 {
+                let dayOffset = sampleIndex  // one sample per day, days 0–5
+                guard let day = calendar.date(byAdding: .day, value: dayOffset, to: interval.start),
+                      let start = calendar.date(bySettingHour: 3,
+                                                minute: Int.random(in: 0...59, using: &rng),
+                                                second: 0, of: day),
+                      let end = calendar.date(byAdding: .minute, value: 5, to: start) else { continue }
+
+                let hrv = Double.random(in: 38...65, using: &rng)
+                samples.append(HKQuantitySample(
+                    type: type,
+                    quantity: HKQuantity(unit: unit, doubleValue: hrv),
+                    start: start, end: end
+                ))
+            }
         }
 
         return samples.sorted { $0.startDate > $1.startDate }

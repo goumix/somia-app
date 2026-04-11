@@ -82,7 +82,7 @@ struct DriftScoreCard: View {
 
             // Score + arrows + label
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                (Text(compositeScore >= 0 ? "+" : "") + Text("\(compositeScore)"))
+                Text("\(compositeScore >= 0 ? "+" : "")\(compositeScore)")
                     .font(.system(size: 58, weight: .bold, design: .rounded))
                     .foregroundStyle(scoreInfo.color)
 

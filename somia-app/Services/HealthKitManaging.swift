@@ -24,6 +24,10 @@ protocol HealthKitManaging: AnyObject, Observable {
     var timeInDaylightSamples: [HKQuantitySample] { get }
     var walkingHeartRateSamples: [HKQuantitySample] { get }
 
+    // MARK: - Three months
+    var hrvThreeMonthsSamples: [HKQuantitySample] { get }
+    var hrvThreeMonthsValidWeekCount: Int { get }
+
     // MARK: - Yearly
     var hrvYearlySamples: [HKQuantitySample] { get }
     var hrvYearlyValidMonthCount: Int { get }

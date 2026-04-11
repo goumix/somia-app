@@ -139,6 +139,24 @@ struct DashboardView: View {
 
     // MARK: - Helpers
 
+    private var weeklyPoints: [DriftEvolutionCard.WeeklyPoint] {
+        let calendar = Calendar.current
+        let now = Date()
+        return (0..<13).compactMap { i -> DriftEvolutionCard.WeeklyPoint? in
+            let validatorOffset = 12 - i  // 12 = oldest week, 0 = current week
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -validatorOffset, to: now),
+                  let interval = calendar.dateInterval(of: .weekOfYear, for: weekStart) else { return nil }
+            let samplesInWeek = healthKit.hrvThreeMonthsSamples.filter {
+                $0.startDate >= interval.start && $0.startDate < interval.end
+            }
+            return DriftEvolutionCard.WeeklyPoint(
+                weekOffset: i,
+                score: 0, // TODO: replace score: 0 with real drift score per week
+                isSufficient: samplesInWeek.count >= 5
+            )
+        }
+    }
+
     private var yearlyMonths: [DriftYearCard.MonthlyPoint] {
         let calendar = Calendar.current
         let now = Date()
@@ -188,7 +206,7 @@ struct DashboardView: View {
                                 cardGroupLabel("ÉTAT PHYSIOLOGIQUE · 1 MOIS")
                                 DriftScoreCard(compositeScore: vm.compositeScore)
                                 cardGroupLabel("ÉVOLUTION · 3 MOIS")
-                                DriftEvolutionCard()
+                                DriftEvolutionCard(points: weeklyPoints)
                                 cardGroupLabel("TRAJECTOIRE · 1 AN")
                                 DriftYearCard(months: yearlyMonths)
                             }

@@ -28,11 +28,31 @@ final class HealthKitManager: HealthKitManaging {
     var timeInDaylightSamples: [HKQuantitySample] = []
     var walkingHeartRateSamples: [HKQuantitySample] = []
 
+    // MARK: - Three months
+
+    var hrvThreeMonthsSamples: [HKQuantitySample] = []
+
     // MARK: - Yearly
 
     var hrvYearlySamples: [HKQuantitySample] = []
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
+
+    /// Returns the number of calendar weeks (in the past 13) that have at least 5 HRV data points.
+    var hrvThreeMonthsValidWeekCount: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        var count = 0
+        for weekOffset in 0..<13 {
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: now),
+                  let interval = calendar.dateInterval(of: .weekOfYear, for: weekStart) else { continue }
+            let samplesInWeek = hrvThreeMonthsSamples.filter {
+                $0.startDate >= interval.start && $0.startDate < interval.end
+            }
+            if samplesInWeek.count >= 5 { count += 1 }
+        }
+        return count
+    }
 
     /// Returns the number of calendar months (in the past 12) that have at least 5 HRV data points.
     var hrvYearlyValidMonthCount: Int {
@@ -112,6 +132,8 @@ final class HealthKitManager: HealthKitManaging {
         async let wristTemp = fetchWristTemperature()
         async let daylight = fetchTimeInDaylight()
         async let walkingHR = fetchWalkingHeartRate()
+        // Three months
+        async let hrvThreeMonths = fetchHRVThreeMonths()
         // Yearly
         async let hrvYearly = fetchHRVYearly()
 
@@ -120,6 +142,7 @@ final class HealthKitManager: HealthKitManaging {
             await (rhr, spo2, respRate, steps, vo2Max)
         let (wristTempResult, daylightResult, walkingHRResult) =
             await (wristTemp, daylight, walkingHR)
+        let hrvThreeMonthsResult = await hrvThreeMonths
         let hrvYearlyResult = await hrvYearly
 
         hrvSamples = hrvResult
@@ -132,6 +155,7 @@ final class HealthKitManager: HealthKitManaging {
         wristTemperatureSamples = wristTempResult
         timeInDaylightSamples = daylightResult
         walkingHeartRateSamples = walkingHRResult
+        hrvThreeMonthsSamples = hrvThreeMonthsResult
         hrvYearlySamples = hrvYearlyResult
         isLoading = false
     }
@@ -139,6 +163,17 @@ final class HealthKitManager: HealthKitManaging {
     private func fetchHRV() async -> [HKQuantitySample] {
         let type = HKQuantityType(.heartRateVariabilitySDNN)
         let start = Calendar.current.date(byAdding: .day, value: -30, to: Date())
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
+        let descriptor: HKSampleQueryDescriptor<HKQuantitySample> = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)]
+        )
+        return (try? await descriptor.result(for: store)) ?? []
+    }
+
+    private func fetchHRVThreeMonths() async -> [HKQuantitySample] {
+        let type = HKQuantityType(.heartRateVariabilitySDNN)
+        let start = Calendar.current.date(byAdding: .weekOfYear, value: -13, to: Date())
         let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
         let descriptor: HKSampleQueryDescriptor<HKQuantitySample> = HKSampleQueryDescriptor(
             predicates: [.quantitySample(type: type, predicate: predicate)],
