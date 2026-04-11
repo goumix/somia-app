@@ -99,6 +99,12 @@ final class DashboardViewModel {
     /// SpO2 is already in % — exposed as a 0–100 score.
     var spo2Score: Double? { 98.0 }
 
+    /// Score de récupération 0–100.
+    /// TODO: remplacer par une formule basée sur HRV + FC repos.
+    var recoveryScore: Double? { nil }
+
+    var recoveryProgress: Double { (recoveryScore ?? 0) / 100.0 }
+
     // MARK: - Ring Progress
 
     var hrvProgress: Double { (hrvScore ?? 0) / 100.0 }

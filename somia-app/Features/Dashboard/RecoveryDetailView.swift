@@ -21,44 +21,39 @@ private final class RecoveryViewModel {
         self.healthKit = healthKit
     }
 
-    // MARK: - Score (sommeil de la nuit précédant date, normalisé 0–100)
-
-    func score(for date: Date) -> Double? {
-        let hours = sleepHours(for: date)
-        guard hours > 0 else { return nil }
-        return min(hours / 9.0, 1.0) * 100
-    }
-
     // MARK: - Métriques
 
     func latestHRV(for date: Date) -> Double? {
-        let cal = Calendar.current
-        return healthKit.hrvSamples
-            .first { cal.isDate($0.startDate, inSameDayAs: date) }
+        healthKit.hrvSamples
+            .first { $0.startDate <= date }
             .map { $0.quantity.doubleValue(for: msUnit) }
     }
 
     func latestRHR(for date: Date) -> Double? {
-        let cal = Calendar.current
-        return healthKit.restingHeartRateSamples
-            .first { cal.isDate($0.startDate, inSameDayAs: date) }
+        healthKit.restingHeartRateSamples
+            .first { $0.startDate <= date }
             .map { $0.quantity.doubleValue(for: bpmUnit) }
     }
 
-    // MARK: - Private
+    // MARK: - Nouvelles métriques (sample le plus récent toutes dates)
 
-    private func sleepHours(for date: Date) -> Double {
-        let cal = Calendar.current
-        guard let previousDay = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: date)) else { return 0 }
-        let asleepStates: Set<Int> = [
-            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
-            HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
-            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
-            HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue
-        ]
-        return healthKit.sleepSamples
-            .filter { cal.isDate($0.startDate, inSameDayAs: previousDay) && asleepStates.contains($0.value) }
-            .reduce(0) { $0 + $1.endDate.timeIntervalSince($1.startDate) / 3600 }
+    var respiratoryRateDisplay: String {
+        guard let sample = healthKit.respiratoryRateSamples.first else { return "--" }
+        let rpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+        return String(format: "%.1f rpm", rpm)
+    }
+
+    var spo2Display: String {
+        guard let sample = healthKit.spo2Samples.first else { return "--" }
+        let pct = sample.quantity.doubleValue(for: .percent()) * 100
+        return String(format: "%.1f %%", pct)
+    }
+
+    var wristTempDisplay: String {
+        guard let sample = healthKit.wristTemperatureSamples.first else { return "--" }
+        let delta = sample.quantity.doubleValue(for: .degreeCelsius())
+        let sign = delta >= 0 ? "+" : ""
+        return String(format: "\(sign)%.2f °C", delta)
     }
 }
 
@@ -66,14 +61,15 @@ private final class RecoveryViewModel {
 
 struct RecoveryDetailView: View {
 
+    let qualityScore: Int?
+
     @Environment(\.healthKit) private var healthKit
     @State private var vm: RecoveryViewModel?
     @State private var selectedDate: Date = .init()
     @State private var showDatePicker = false
 
-    private var score: Double?    { vm?.score(for: selectedDate) }
-    private var progress: Double  { (score ?? 0) / 100.0 }
-    private var ringColor: Color  { score.map { scoreColor(for: $0) } ?? ringNeutralColor }
+    private var progress: Double  { qualityScore.map { Double($0) / 100.0 } ?? 0.0 }
+    private var ringColor: Color  { qualityScore.map { scoreColor(for: Double($0)) } ?? ringNeutralColor }
 
     private var hrvDisplay: String {
         guard let vm, let hrv = vm.latestHRV(for: selectedDate) else { return "--" }
@@ -93,6 +89,11 @@ struct RecoveryDetailView: View {
                 HStack(spacing: 12) {
                     metricCard(label: "HRV au repos", value: hrvDisplay)
                     metricCard(label: "FC au repos",  value: rhrDisplay)
+                }
+                metricCard(label: "Fréquence respiratoire", value: vm?.respiratoryRateDisplay ?? "--")
+                HStack(spacing: 12) {
+                    metricCard(label: "SpO2",                 value: vm?.spo2Display ?? "--")
+                    metricCard(label: "Écart temp. poignet",  value: vm?.wristTempDisplay ?? "--")
                 }
             }
             .padding(.horizontal, 16)
@@ -146,7 +147,7 @@ struct RecoveryDetailView: View {
                 .rotationEffect(.degrees(-90))
                 .animation(.easeOut(duration: 0.7), value: progress)
                 .shadow(color: ringColor.opacity(0.4), radius: 12)
-            Text(score.map { "\(Int($0))" } ?? "--")
+            Text(qualityScore.map { "\($0)" } ?? "--")
                 .font(.system(size: 52, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
         }

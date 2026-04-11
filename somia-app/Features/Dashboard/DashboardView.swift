@@ -301,13 +301,13 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Récupération — sommeil normalisé 0–100 (9 h → score 100)
-                NavigationLink(destination: RecoveryDetailView()) {
-                    let recoveryColor = vm.sleepScore.map { scoreColor(for: $0) } ?? ringNeutralColor
+                // Récupération — score dédié 0–100 (algorithme à implémenter)
+                NavigationLink(destination: RecoveryDetailView(qualityScore: vm.recoveryScore.map { Int($0) })) {
+                    let recoveryColor = vm.recoveryScore.map { scoreColor(for: $0) } ?? ringNeutralColor
                     RingMetricView(
                         label: "Récupération",
-                        value: vm.sleepScore.map { "\(Int($0))" } ?? "--",
-                        progress: vm.sleepProgress,
+                        value: vm.recoveryScore.map { "\(Int($0))" } ?? "--",
+                        progress: vm.recoveryProgress,
                         gradientColors: [recoveryColor, recoveryColor]
                     )
                     .frame(maxWidth: .infinity)
