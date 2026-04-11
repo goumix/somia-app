@@ -104,7 +104,7 @@ final class HealthKitManagerMock: HealthKitManaging {
         walkingHeartRateSamples = Self.makeWalkingHeartRateSamples()
     }
 
-    func requestAuthorization() async {
+    @MainActor func requestAuthorization() async {
         authorizationStatus = "Autorisé"
         await fetchData()
     }

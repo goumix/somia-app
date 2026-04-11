@@ -24,7 +24,7 @@ protocol HealthKitManaging: AnyObject, Observable {
     var timeInDaylightSamples: [HKQuantitySample] { get }
     var walkingHeartRateSamples: [HKQuantitySample] { get }
 
-    func requestAuthorization() async
+    @MainActor func requestAuthorization() async
     func fetchData() async
 }
 

@@ -34,7 +34,7 @@ final class HealthKitManager: HealthKitManaging {
 
     // MARK: - Authorization
 
-    func requestAuthorization() async {
+    @MainActor func requestAuthorization() async {
         guard isAvailable else {
             error = "HealthKit non disponible sur cet appareil"
             return
@@ -50,7 +50,10 @@ final class HealthKitManager: HealthKitManaging {
             HKQuantityType(.stepCount),
             HKQuantityType(.vo2Max),
             // Tier 2 — broadly available
-            HKQuantityType(.walkingHeartRateAverage)
+            HKQuantityType(.walkingHeartRateAverage),
+            // Effort detail
+            HKQuantityType(.appleExerciseTime),
+            HKQuantityType(.activeEnergyBurned)
         ]
 
         // Tier 2 — guarded by OS availability

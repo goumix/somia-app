@@ -14,7 +14,6 @@ import HealthKit
 private final class EffortViewModel {
 
     let healthKit: any HealthKitManaging
-    private let store   = HKHealthStore()
     private let msUnit  = HKUnit.secondUnit(with: .milli)
 
     var exerciseMinutes: Double? = nil
@@ -41,7 +40,6 @@ private final class EffortViewModel {
 
         let exerciseType = HKQuantityType(.appleExerciseTime)
         let energyType   = HKQuantityType(.activeEnergyBurned)
-        try? await store.requestAuthorization(toShare: [], read: [exerciseType, energyType])
 
         let cal   = Calendar.current
         let start = cal.startOfDay(for: date)
@@ -63,7 +61,7 @@ private final class EffortViewModel {
             predicates: [.quantitySample(type: type, predicate: predicate)],
             sortDescriptors: []
         )
-        return (try? await descriptor.result(for: store)) ?? []
+        return (try? await descriptor.result(for: HKHealthStore())) ?? []
     }
 }
 
