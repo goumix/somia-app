@@ -91,6 +91,17 @@ final class HealthKitManagerMock: HealthKitManaging {
     var timeInDaylightSamples: [HKQuantitySample] = []
     var walkingHeartRateSamples: [HKQuantitySample] = []
 
+    // MARK: - Sleep Detail
+
+    var sleepStart: Date?
+    var sleepEnd: Date?
+    var remDuration: TimeInterval = 6720    // 1h 52min
+    var deepDuration: TimeInterval = 2580   // 43min
+    var nightlyHeartRateMin: Double? = 48
+    var nightlyHeartRateAvg: Double? = 56
+    var nightlyHeartRateMax: Double? = 72
+    var nightlyHRDrop: Double? = 38.5
+
     // MARK: - Three months
 
     var hrvThreeMonthsSamples: [HKQuantitySample] = []
@@ -130,6 +141,13 @@ final class HealthKitManagerMock: HealthKitManaging {
     }
 
     init() {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        if let yesterday = cal.date(byAdding: .day, value: -1, to: today) {
+            sleepStart = cal.date(bySettingHour: 23, minute: 10, second: 0, of: yesterday)
+        }
+        sleepEnd = cal.date(bySettingHour: 6, minute: 45, second: 0, of: today)
+
         hrvSamples              = Self.makeHRVSamples()
         sleepSamples            = Self.makeSleepSamples()
         restingHeartRateSamples = Self.makeRestingHeartRateSamples()

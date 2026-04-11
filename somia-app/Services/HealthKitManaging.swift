@@ -32,6 +32,16 @@ protocol HealthKitManaging: AnyObject, Observable {
     var hrvYearlySamples: [HKQuantitySample] { get }
     var hrvYearlyValidMonthCount: Int { get }
 
+    // MARK: - Sleep Detail
+    var sleepStart: Date? { get }
+    var sleepEnd: Date? { get }
+    var remDuration: TimeInterval { get }
+    var deepDuration: TimeInterval { get }
+    var nightlyHeartRateMin: Double? { get }
+    var nightlyHeartRateAvg: Double? { get }
+    var nightlyHeartRateMax: Double? { get }
+    var nightlyHRDrop: Double? { get }
+
     @MainActor func requestAuthorization() async
     func fetchData() async
 }

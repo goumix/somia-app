@@ -28,6 +28,10 @@ final class HealthKitManager: HealthKitManaging {
     var timeInDaylightSamples: [HKQuantitySample] = []
     var walkingHeartRateSamples: [HKQuantitySample] = []
 
+    // MARK: - Sleep Detail
+
+    var nightlyHeartRateSamples: [HKQuantitySample] = []
+
     // MARK: - Three months
 
     var hrvThreeMonthsSamples: [HKQuantitySample] = []
@@ -37,6 +41,68 @@ final class HealthKitManager: HealthKitManaging {
     var hrvYearlySamples: [HKQuantitySample] = []
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
+
+    // MARK: - Sleep Detail (computed from sleepSamples / nightlyHeartRateSamples)
+
+    private var mostRecentNightAsleepSamples: [HKCategorySample] {
+        let asleepValues: Set<Int> = [
+            HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+            HKCategoryValueSleepAnalysis.asleepREM.rawValue,
+            HKCategoryValueSleepAnalysis.asleepDeep.rawValue
+        ]
+        let filtered = sleepSamples.filter { asleepValues.contains($0.value) }
+        guard let latest = filtered.first else { return [] }
+        let ref = latest.startDate
+        return filtered.filter { abs($0.startDate.timeIntervalSince(ref)) < 24 * 3600 }
+    }
+
+    var sleepStart: Date? {
+        mostRecentNightAsleepSamples.map(\.startDate).min()
+    }
+
+    var sleepEnd: Date? {
+        mostRecentNightAsleepSamples.map(\.endDate).max()
+    }
+
+    var remDuration: TimeInterval {
+        mostRecentNightAsleepSamples
+            .filter { $0.value == HKCategoryValueSleepAnalysis.asleepREM.rawValue }
+            .reduce(0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
+    }
+
+    var deepDuration: TimeInterval {
+        mostRecentNightAsleepSamples
+            .filter { $0.value == HKCategoryValueSleepAnalysis.asleepDeep.rawValue }
+            .reduce(0) { $0 + $1.endDate.timeIntervalSince($1.startDate) }
+    }
+
+    var nightlyHeartRateMin: Double? {
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        let values = nightlyHeartRateSamples.map { $0.quantity.doubleValue(for: unit) }
+        return values.isEmpty ? nil : values.min()
+    }
+
+    var nightlyHeartRateAvg: Double? {
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        let values = nightlyHeartRateSamples.map { $0.quantity.doubleValue(for: unit) }
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    var nightlyHeartRateMax: Double? {
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        let values = nightlyHeartRateSamples.map { $0.quantity.doubleValue(for: unit) }
+        return values.isEmpty ? nil : values.max()
+    }
+
+    var nightlyHRDrop: Double? {
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        guard let rhr = restingHeartRateSamples.first?.quantity.doubleValue(for: unit),
+              rhr > 0,
+              let minHR = nightlyHeartRateMin else { return nil }
+        let drop = (rhr - minHR) / rhr * 100
+        return (drop * 10).rounded() / 10
+    }
 
     /// Returns the number of calendar weeks (in the past 13) that have at least 5 HRV data points.
     var hrvThreeMonthsValidWeekCount: Int {
@@ -84,6 +150,7 @@ final class HealthKitManager: HealthKitManaging {
             HKQuantityType(.heartRateVariabilitySDNN),
             HKCategoryType(.sleepAnalysis),
             // Tier 1
+            HKQuantityType(.heartRate),
             HKQuantityType(.restingHeartRate),
             HKQuantityType(.oxygenSaturation),
             HKQuantityType(.respiratoryRate),
@@ -120,33 +187,30 @@ final class HealthKitManager: HealthKitManaging {
         isLoading = true
         error = nil
 
+        // Sleep must be fetched first so sleepStart/sleepEnd are available for the nightly HR window
+        sleepSamples = await fetchSleep()
+
         async let hrv = fetchHRV()
-        async let sleep = fetchSleep()
-        // Tier 1
         async let rhr = fetchRestingHeartRate()
         async let spo2 = fetchSpO2()
         async let respRate = fetchRespiratoryRate()
         async let steps = fetchStepCount()
         async let vo2Max = fetchVO2Max()
-        // Tier 2
         async let wristTemp = fetchWristTemperature()
         async let daylight = fetchTimeInDaylight()
         async let walkingHR = fetchWalkingHeartRate()
-        // Three months
         async let hrvThreeMonths = fetchHRVThreeMonths()
-        // Yearly
         async let hrvYearly = fetchHRVYearly()
+        async let nightlyHR = fetchNightlyHeartRate()
 
-        let (hrvResult, sleepResult) = await (hrv, sleep)
-        let (rhrResult, spo2Result, respRateResult, stepsResult, vo2MaxResult) =
-            await (rhr, spo2, respRate, steps, vo2Max)
+        let (hrvResult, rhrResult, spo2Result, respRateResult, stepsResult, vo2MaxResult) =
+            await (hrv, rhr, spo2, respRate, steps, vo2Max)
         let (wristTempResult, daylightResult, walkingHRResult) =
             await (wristTemp, daylight, walkingHR)
-        let hrvThreeMonthsResult = await hrvThreeMonths
-        let hrvYearlyResult = await hrvYearly
+        let (hrvThreeMonthsResult, hrvYearlyResult, nightlyHRResult) =
+            await (hrvThreeMonths, hrvYearly, nightlyHR)
 
         hrvSamples = hrvResult
-        sleepSamples = sleepResult
         restingHeartRateSamples = rhrResult
         spo2Samples = spo2Result
         respiratoryRateSamples = respRateResult
@@ -157,6 +221,7 @@ final class HealthKitManager: HealthKitManaging {
         walkingHeartRateSamples = walkingHRResult
         hrvThreeMonthsSamples = hrvThreeMonthsResult
         hrvYearlySamples = hrvYearlyResult
+        nightlyHeartRateSamples = nightlyHRResult
         isLoading = false
     }
 
@@ -200,6 +265,17 @@ final class HealthKitManager: HealthKitManaging {
         let descriptor: HKSampleQueryDescriptor<HKCategorySample> = HKSampleQueryDescriptor(
             predicates: [.categorySample(type: type, predicate: predicate)],
             sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)]
+        )
+        return (try? await descriptor.result(for: store)) ?? []
+    }
+
+    private func fetchNightlyHeartRate() async -> [HKQuantitySample] {
+        guard let start = sleepStart, let end = sleepEnd else { return [] }
+        let type = HKQuantityType(.heartRate)
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+        let descriptor: HKSampleQueryDescriptor<HKQuantitySample> = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
         )
         return (try? await descriptor.result(for: store)) ?? []
     }

@@ -28,6 +28,46 @@ private final class SleepViewModel {
         return sample.quantity.doubleValue(for: .percent()) * 100
     }
 
+    // MARK: - Plages horaires et phases (nuit la plus récente)
+
+    var sleepPeriodDisplay: String {
+        guard let start = healthKit.sleepStart, let end = healthKit.sleepEnd else { return "--" }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "HH:mm"
+        return "\(fmt.string(from: start)) — \(fmt.string(from: end))"
+    }
+
+    var remDisplay: String {
+        healthKit.remDuration > 0 ? formatPhaseDuration(healthKit.remDuration) : "--"
+    }
+
+    var deepDisplay: String {
+        healthKit.deepDuration > 0 ? formatPhaseDuration(healthKit.deepDuration) : "--"
+    }
+
+    var nightlyHRMinDisplay: String {
+        healthKit.nightlyHeartRateMin.map { "\(Int($0))" } ?? "--"
+    }
+
+    var nightlyHRAvgDisplay: String {
+        healthKit.nightlyHeartRateAvg.map { "\(Int($0.rounded()))" } ?? "--"
+    }
+
+    var nightlyHRMaxDisplay: String {
+        healthKit.nightlyHeartRateMax.map { "\(Int($0))" } ?? "--"
+    }
+
+    var hrDropDisplay: String {
+        healthKit.nightlyHRDrop.map { "\($0)%" } ?? "--"
+    }
+
+    private func formatPhaseDuration(_ seconds: TimeInterval) -> String {
+        let totalMinutes = Int(seconds / 60)
+        let hours = totalMinutes / 60
+        let mins = totalMinutes % 60
+        return hours > 0 ? "\(hours)h \(mins)min" : "\(mins)min"
+    }
+
     // MARK: - Métriques sommeil (nuit précédant date)
 
     func sleepData(for date: Date) -> (inBed: Double?, asleep: Double?) {
@@ -61,6 +101,8 @@ private final class SleepViewModel {
 // MARK: - View
 
 struct SleepDetailView: View {
+
+    let qualityScore: Int?
 
     @Environment(\.healthKit) private var healthKit
     @State private var vm: SleepViewModel?
@@ -97,6 +139,13 @@ struct SleepDetailView: View {
                     metricCard(label: "Temps au lit",       value: inBedDisplay)
                     metricCard(label: "Durée du sommeil",   value: asleepDisplay)
                 }
+                sleepPeriodCard
+                HStack(spacing: 12) {
+                    metricCard(label: "Sommeil paradoxal", value: vm?.remDisplay ?? "--")
+                    metricCard(label: "Sommeil profond",   value: vm?.deepDisplay ?? "--")
+                }
+                nightlyHeartRateCard
+                hrDropCard
             }
             .padding(.horizontal, 16)
             .padding(.top, 24)
@@ -143,15 +192,20 @@ struct SleepDetailView: View {
                 .stroke(Color.white.opacity(0.07), lineWidth: lw)
                 .frame(width: size, height: size)
             Circle()
-                .trim(from: 0, to: CGFloat(progress))
-                .stroke(ringColor, style: StrokeStyle(lineWidth: lw, lineCap: .round))
+                .trim(from: 0, to: CGFloat(qualityScore.map { Double($0) / 100.0 } ?? 0.0))
+                .stroke(Color.somiaAccent, style: StrokeStyle(lineWidth: lw, lineCap: .round))
                 .frame(width: size, height: size)
                 .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.7), value: progress)
-                .shadow(color: ringColor.opacity(0.4), radius: 12)
-            Text(score.map { "\(Int($0))" } ?? "--")
-                .font(.system(size: 52, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .animation(.easeOut(duration: 0.7), value: qualityScore.map { Double($0) / 100.0 } ?? 0.0)
+                .shadow(color: Color.somiaAccent.opacity(0.4), radius: 12)
+            VStack(spacing: 2) {
+                Text(qualityScore.map { "\($0)" } ?? "--")
+                    .font(.system(size: 52, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Qualité")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
         }
         .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
         .padding(.vertical, 8)
@@ -165,6 +219,80 @@ struct SleepDetailView: View {
             Text(value)
                 .font(.title2.bold())
                 .foregroundStyle(.white)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var sleepPeriodCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bed.double")
+                .font(.body)
+                .foregroundStyle(.white.opacity(0.5))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Période de sommeil")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+                Text(vm?.sleepPeriodDisplay ?? "--")
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private var nightlyHeartRateCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("FC nocturne")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.5))
+            HStack {
+                Spacer()
+                hrValueColumn(label: "Min", value: vm?.nightlyHRMinDisplay ?? "--")
+                Spacer()
+                hrValueColumn(label: "Moy", value: vm?.nightlyHRAvgDisplay ?? "--")
+                Spacer()
+                hrValueColumn(label: "Max", value: vm?.nightlyHRMaxDisplay ?? "--")
+                Spacer()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func hrValueColumn(label: String, value: String) -> some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.5))
+            Text(value)
+                .font(.title2.bold())
+                .foregroundStyle(.white)
+            Text("bpm")
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.3))
+        }
+    }
+
+    private var hrDropCard: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Baisse de fréquence cardiaque")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.5))
+            Text(vm?.hrDropDisplay ?? "--")
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+            Text("par rapport à la FC de repos")
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.3))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)

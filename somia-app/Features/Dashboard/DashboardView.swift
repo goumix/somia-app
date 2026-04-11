@@ -314,14 +314,14 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Sommeil — SpO2 exprimé en score 0–100
-                NavigationLink(destination: SleepDetailView()) {
-                    let sleepColor = vm.spo2Score.map { scoreColor(for: $0) } ?? ringNeutralColor
+                // Sommeil — score qualité 0–100
+                NavigationLink(destination: SleepDetailView(qualityScore: vm.sleepScore.map { Int($0) })) {
+                    let sleepQualityColor = vm.sleepScore.map { scoreColor(for: $0) } ?? ringNeutralColor
                     RingMetricView(
                         label: "Sommeil",
-                        value: vm.spo2Score.map { "\(Int($0))" } ?? "--",
-                        progress: (vm.spo2Score ?? 0) / 100.0,
-                        gradientColors: [sleepColor, sleepColor]
+                        value: vm.sleepScore.map { "\(Int($0))" } ?? "--",
+                        progress: vm.sleepProgress,
+                        gradientColors: [sleepQualityColor, sleepQualityColor]
                     )
                     .frame(maxWidth: .infinity)
                 }
