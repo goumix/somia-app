@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import HealthKit
 
 // MARK: - RingMetricView
 
@@ -138,6 +139,29 @@ struct DashboardView: View {
 
     // MARK: - Helpers
 
+    private var yearlyMonths: [DriftYearCard.MonthlyPoint] {
+        let calendar = Calendar.current
+        let now = Date()
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.dateFormat = "MMM"
+
+        return Array((0..<12).reversed()).compactMap { monthOffset -> DriftYearCard.MonthlyPoint? in
+            guard let monthStart = calendar.date(byAdding: .month, value: -monthOffset, to: now),
+                  let interval = calendar.dateInterval(of: .month, for: monthStart) else { return nil }
+            let samplesInMonth = healthKit.hrvYearlySamples.filter {
+                $0.startDate >= interval.start && $0.startDate < interval.end
+            }
+            let isSufficient = samplesInMonth.count >= 5
+            let label = String(formatter.string(from: interval.start).prefix(3)).capitalized
+            return DriftYearCard.MonthlyPoint(
+                monthLabel: label,
+                score: 0, // TODO: replace score: 0 with real drift score per month
+                isSufficient: isSufficient
+            )
+        }
+    }
+
     private var formattedDate: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "fr_FR")
@@ -166,7 +190,7 @@ struct DashboardView: View {
                                 cardGroupLabel("ÉVOLUTION · 3 MOIS")
                                 DriftEvolutionCard()
                                 cardGroupLabel("TRAJECTOIRE · 1 AN")
-                                DriftYearCard()
+                                DriftYearCard(months: yearlyMonths)
                             }
                             .padding(.horizontal, 16)
                             .padding(.top, 16)

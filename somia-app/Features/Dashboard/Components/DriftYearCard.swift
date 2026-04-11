@@ -16,28 +16,20 @@ struct DriftYearCard: View {
         let id = UUID()
         let monthLabel: String   // 3-char French abbreviation
         let score: Int
+        let isSufficient: Bool   // false = fewer than 5 data points this month
     }
 
-    private let months: [MonthlyPoint] = [
-        .init(monthLabel: "Avr", score: -58),
-        .init(monthLabel: "Mai", score: -44),
-        .init(monthLabel: "Jun", score: -29),
-        .init(monthLabel: "Jul", score:  -8),
-        .init(monthLabel: "Aoû", score:  12),
-        .init(monthLabel: "Sep", score:  33),
-        .init(monthLabel: "Oct", score:  41),
-        .init(monthLabel: "Nov", score:  18),
-        .init(monthLabel: "Déc", score:  -5),
-        .init(monthLabel: "Jan", score: -18),
-        .init(monthLabel: "Fév", score:   7),
-        .init(monthLabel: "Mar", score: -23),
-    ]
+    let months: [MonthlyPoint]
 
     // MARK: Counts
 
     private var progressionCount: Int { months.filter { $0.score >  20 }.count }
     private var stableCount:      Int { months.filter { $0.score >= -15 && $0.score <= 20 }.count }
     private var driftCount:       Int { months.filter { $0.score <  -15 }.count }
+
+    private var isEmpty: Bool {
+        months.filter { $0.isSufficient }.count < 4
+    }
 
     // MARK: Helpers
 
@@ -53,32 +45,60 @@ struct DriftYearCard: View {
     // MARK: Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        if isEmpty {
+            emptyStateView
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
 
-            // Rows
-            ForEach(months) { month in
-                monthRow(month)
-                if month.id != months.last?.id {
-                    Divider()
-                        .background(Color.somiaCardBorder)
+                // Rows
+                ForEach(months) { month in
+                    monthRow(month)
+                    if month.id != months.last?.id {
+                        Divider()
+                            .background(Color.somiaCardBorder)
+                    }
                 }
-            }
 
-            // Footer summary
-            Rectangle()
-                .fill(Color.somiaCardBorder)
-                .frame(height: 1)
-                .padding(.top, 8)
+                // Footer summary
+                Rectangle()
+                    .fill(Color.somiaCardBorder)
+                    .frame(height: 1)
+                    .padding(.top, 8)
 
-            HStack(spacing: 0) {
-                footerStat(count: progressionCount, label: "en progression", color: .somiaGreenStrong)
-                footerDot()
-                footerStat(count: stableCount, label: "stables", color: Color.somiaBodyText)
-                footerDot()
-                footerStat(count: driftCount, label: "en dérive", color: .somiaDrift)
+                HStack(spacing: 0) {
+                    footerStat(count: progressionCount, label: "en progression", color: .somiaGreenStrong)
+                    footerDot()
+                    footerStat(count: stableCount, label: "stables", color: Color.somiaBodyText)
+                    footerDot()
+                    footerStat(count: driftCount, label: "en dérive", color: .somiaDrift)
+                }
+                .padding(.top, 10)
             }
-            .padding(.top, 10)
+            .driftCardStyle()
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.somiaCardBorder, lineWidth: 1)
+            )
         }
+    }
+
+    // MARK: - Empty State
+
+    private var emptyStateView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "chart.bar.xaxis")
+                .font(.system(size: 28))
+                .foregroundStyle(Color.somiaBodyText.opacity(0.25))
+            Text("Pas encore assez de données")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.somiaBodyText.opacity(0.5))
+            Text("Il faut au moins 4 mois de données Apple Watch pour afficher la vue annuelle.")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.somiaBodyText.opacity(0.35))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
         .driftCardStyle()
         .overlay(
             RoundedRectangle(cornerRadius: 16)
@@ -105,36 +125,43 @@ struct DriftYearCard: View {
                 .foregroundStyle(Color.somiaBodyText)
                 .frame(width: 28, alignment: .leading)
 
-            // Diverging bar
-            GeometryReader { geo in
-                let midX = geo.size.width / 2
-                let barWidth = geo.size.width / 2 * fraction
+            if month.isSufficient {
+                // Diverging bar
+                GeometryReader { geo in
+                    let midX = geo.size.width / 2
+                    let barWidth = geo.size.width / 2 * fraction
 
-                ZStack(alignment: .center) {
-                    // Center reference line
-                    Rectangle()
-                        .fill(Color.somiaCardBorder)
-                        .frame(width: 1, height: 6)
-                        .position(x: midX, y: geo.size.height / 2)
+                    ZStack(alignment: .center) {
+                        // Center reference line
+                        Rectangle()
+                            .fill(Color.somiaCardBorder)
+                            .frame(width: 1, height: 6)
+                            .position(x: midX, y: geo.size.height / 2)
 
-                    // Bar
-                    Rectangle()
-                        .fill(color)
-                        .frame(width: max(2, barWidth), height: 6)
-                        .clipShape(Capsule())
-                        .position(
-                            x: isPositive ? midX + barWidth / 2 : midX - barWidth / 2,
-                            y: geo.size.height / 2
-                        )
+                        // Bar
+                        Rectangle()
+                            .fill(color)
+                            .frame(width: max(2, barWidth), height: 6)
+                            .clipShape(Capsule())
+                            .position(
+                                x: isPositive ? midX + barWidth / 2 : midX - barWidth / 2,
+                                y: geo.size.height / 2
+                            )
+                    }
                 }
-            }
-            .frame(height: 16)
+                .frame(height: 16)
 
-            // Score value
-            Text(month.score >= 0 ? "+\(month.score)" : "\(month.score)")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(color)
-                .frame(width: 36, alignment: .trailing)
+                // Score value
+                Text(month.score >= 0 ? "+\(month.score)" : "\(month.score)")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(color)
+                    .frame(width: 36, alignment: .trailing)
+            } else {
+                Text("données insuffisantes")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.somiaBodyText.opacity(0.35))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
         }
         .padding(.vertical, 7)
     }
@@ -163,7 +190,20 @@ struct DriftYearCard: View {
 // MARK: - Preview
 
 #Preview {
-    DriftYearCard()
-        .padding()
-        .background(Color.somiaBackground)
+    DriftYearCard(months: [
+        .init(monthLabel: "Avr", score: -58, isSufficient: true),
+        .init(monthLabel: "Mai", score: -44, isSufficient: true),
+        .init(monthLabel: "Jun", score: -29, isSufficient: true),
+        .init(monthLabel: "Jul", score:  -8, isSufficient: true),
+        .init(monthLabel: "Aoû", score:  12, isSufficient: true),
+        .init(monthLabel: "Sep", score:  33, isSufficient: true),
+        .init(monthLabel: "Oct", score:  41, isSufficient: true),
+        .init(monthLabel: "Nov", score:  18, isSufficient: true),
+        .init(monthLabel: "Déc", score:  -5, isSufficient: true),
+        .init(monthLabel: "Jan", score: -18, isSufficient: true),
+        .init(monthLabel: "Fév", score:   7, isSufficient: true),
+        .init(monthLabel: "Mar", score: -23, isSufficient: true),
+    ])
+    .padding()
+    .background(Color.somiaBackground)
 }

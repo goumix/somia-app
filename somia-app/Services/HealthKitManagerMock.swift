@@ -91,6 +91,25 @@ final class HealthKitManagerMock: HealthKitManaging {
     var timeInDaylightSamples: [HKQuantitySample] = []
     var walkingHeartRateSamples: [HKQuantitySample] = []
 
+    // MARK: - Yearly
+
+    var hrvYearlySamples: [HKQuantitySample] = []
+
+    var hrvYearlyValidMonthCount: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        var count = 0
+        for monthOffset in 0..<12 {
+            guard let monthStart = calendar.date(byAdding: .month, value: -monthOffset, to: now),
+                  let interval = calendar.dateInterval(of: .month, for: monthStart) else { continue }
+            let samplesInMonth = hrvYearlySamples.filter {
+                $0.startDate >= interval.start && $0.startDate < interval.end
+            }
+            if samplesInMonth.count >= 5 { count += 1 }
+        }
+        return count
+    }
+
     init() {
         hrvSamples              = Self.makeHRVSamples()
         sleepSamples            = Self.makeSleepSamples()
@@ -102,6 +121,7 @@ final class HealthKitManagerMock: HealthKitManaging {
         wristTemperatureSamples = Self.makeWristTemperatureSamples()
         timeInDaylightSamples   = Self.makeTimeInDaylightSamples()
         walkingHeartRateSamples = Self.makeWalkingHeartRateSamples()
+        hrvYearlySamples        = Self.makeHRVYearlySamples()
     }
 
     @MainActor func requestAuthorization() async {
@@ -122,6 +142,7 @@ final class HealthKitManagerMock: HealthKitManaging {
         wristTemperatureSamples = Self.makeWristTemperatureSamples()
         timeInDaylightSamples   = Self.makeTimeInDaylightSamples()
         walkingHeartRateSamples = Self.makeWalkingHeartRateSamples()
+        hrvYearlySamples        = Self.makeHRVYearlySamples()
         isLoading = false
     }
 
@@ -525,6 +546,44 @@ final class HealthKitManagerMock: HealthKitManaging {
                 quantity: HKQuantity(unit: unit, doubleValue: Double.random(in: 90...105, using: &rng)),
                 start: start, end: end
             ))
+        }
+
+        return samples.sorted { $0.startDate > $1.startDate }
+    }
+
+    // MARK: - Yearly HRV — 8 samples per month, 12 months (all months sufficient)
+
+    /// Generates 8 nightly HRV samples for each of the past 12 calendar months,
+    /// evenly spread across each month. Every month exceeds the 5-sample threshold
+    /// so `isSufficient` is true for all months in the year card.
+    private static func makeHRVYearlySamples() -> [HKQuantitySample] {
+        let calendar = Calendar.current
+        let now = Date()
+        let type = HKQuantityType(.heartRateVariabilitySDNN)
+        let unit = HKUnit.secondUnit(with: .milli)
+        var rng = SeededRNG(seed: 0xD00D_FEED)
+
+        var samples: [HKQuantitySample] = []
+
+        for monthOffset in 0..<12 {
+            guard let monthStart = calendar.date(byAdding: .month, value: -monthOffset, to: now),
+                  let interval = calendar.dateInterval(of: .month, for: monthStart) else { continue }
+
+            for sampleIndex in 0..<8 {
+                let dayOffset = Int(Double(sampleIndex) / 8.0 * 28.0)
+                guard let day = calendar.date(byAdding: .day, value: dayOffset, to: interval.start),
+                      let start = calendar.date(bySettingHour: 3,
+                                                minute: Int.random(in: 0...59, using: &rng),
+                                                second: 0, of: day),
+                      let end = calendar.date(byAdding: .minute, value: 5, to: start) else { continue }
+
+                let hrv = Double.random(in: 38...65, using: &rng)
+                samples.append(HKQuantitySample(
+                    type: type,
+                    quantity: HKQuantity(unit: unit, doubleValue: hrv),
+                    start: start, end: end
+                ))
+            }
         }
 
         return samples.sorted { $0.startDate > $1.startDate }

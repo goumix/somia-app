@@ -24,6 +24,10 @@ protocol HealthKitManaging: AnyObject, Observable {
     var timeInDaylightSamples: [HKQuantitySample] { get }
     var walkingHeartRateSamples: [HKQuantitySample] { get }
 
+    // MARK: - Yearly
+    var hrvYearlySamples: [HKQuantitySample] { get }
+    var hrvYearlyValidMonthCount: Int { get }
+
     @MainActor func requestAuthorization() async
     func fetchData() async
 }

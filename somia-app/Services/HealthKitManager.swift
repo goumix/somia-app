@@ -28,7 +28,27 @@ final class HealthKitManager: HealthKitManaging {
     var timeInDaylightSamples: [HKQuantitySample] = []
     var walkingHeartRateSamples: [HKQuantitySample] = []
 
+    // MARK: - Yearly
+
+    var hrvYearlySamples: [HKQuantitySample] = []
+
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
+
+    /// Returns the number of calendar months (in the past 12) that have at least 5 HRV data points.
+    var hrvYearlyValidMonthCount: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        var count = 0
+        for monthOffset in 0..<12 {
+            guard let monthStart = calendar.date(byAdding: .month, value: -monthOffset, to: now),
+                  let interval = calendar.dateInterval(of: .month, for: monthStart) else { continue }
+            let samplesInMonth = hrvYearlySamples.filter {
+                $0.startDate >= interval.start && $0.startDate < interval.end
+            }
+            if samplesInMonth.count >= 5 { count += 1 }
+        }
+        return count
+    }
 
     init() {}
 
@@ -92,12 +112,15 @@ final class HealthKitManager: HealthKitManaging {
         async let wristTemp = fetchWristTemperature()
         async let daylight = fetchTimeInDaylight()
         async let walkingHR = fetchWalkingHeartRate()
+        // Yearly
+        async let hrvYearly = fetchHRVYearly()
 
         let (hrvResult, sleepResult) = await (hrv, sleep)
         let (rhrResult, spo2Result, respRateResult, stepsResult, vo2MaxResult) =
             await (rhr, spo2, respRate, steps, vo2Max)
         let (wristTempResult, daylightResult, walkingHRResult) =
             await (wristTemp, daylight, walkingHR)
+        let hrvYearlyResult = await hrvYearly
 
         hrvSamples = hrvResult
         sleepSamples = sleepResult
@@ -109,12 +132,24 @@ final class HealthKitManager: HealthKitManaging {
         wristTemperatureSamples = wristTempResult
         timeInDaylightSamples = daylightResult
         walkingHeartRateSamples = walkingHRResult
+        hrvYearlySamples = hrvYearlyResult
         isLoading = false
     }
 
     private func fetchHRV() async -> [HKQuantitySample] {
         let type = HKQuantityType(.heartRateVariabilitySDNN)
         let start = Calendar.current.date(byAdding: .day, value: -30, to: Date())
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
+        let descriptor: HKSampleQueryDescriptor<HKQuantitySample> = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type, predicate: predicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .reverse)]
+        )
+        return (try? await descriptor.result(for: store)) ?? []
+    }
+
+    private func fetchHRVYearly() async -> [HKQuantitySample] {
+        let type = HKQuantityType(.heartRateVariabilitySDNN)
+        let start = Calendar.current.date(byAdding: .year, value: -1, to: Date())
         let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
         let descriptor: HKSampleQueryDescriptor<HKQuantitySample> = HKSampleQueryDescriptor(
             predicates: [.quantitySample(type: type, predicate: predicate)],
