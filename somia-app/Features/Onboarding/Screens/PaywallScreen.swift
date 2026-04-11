@@ -102,7 +102,9 @@ struct PaywallScreen: View {
                     .animation(.easeOut(duration: 0.55).delay(0.18), value: appeared)
 
                     // CTA
-                    OnboardingCTAButton(title: "Commencer l'essai gratuit", action: coordinator.completeOnboarding)
+                    OnboardingCTAButton(title: "Commencer l'essai gratuit") {
+                        coordinator.navigate(to: .userName)
+                    }
                         .padding(.horizontal, 24)
                         .opacity(appeared ? 1.0 : 0.0)
                         .animation(.easeOut(duration: 0.55).delay(0.22), value: appeared)

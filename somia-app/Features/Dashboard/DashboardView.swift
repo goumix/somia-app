@@ -130,6 +130,8 @@ struct DashboardView: View {
 
     // MARK: - ViewModel
 
+    @AppStorage("userName") private var userName: String = "Alex"
+
     @State private var vm: DashboardViewModel?
 
     @State private var showSettings = false
@@ -198,7 +200,7 @@ struct DashboardView: View {
                     .foregroundStyle(Color.somiaBodyText)
                     .tracking(1.2)
 
-                Text("Bonjour Alex")
+                Text("Bonjour \(userName)")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
@@ -212,7 +214,7 @@ struct DashboardView: View {
                     Circle()
                         .fill(Color.somiaAccent.opacity(0.15))
                         .frame(width: 48, height: 48)
-                    Text("A")
+                    Text(String(userName.prefix(1)).uppercased())
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(Color.somiaAccent)
                 }

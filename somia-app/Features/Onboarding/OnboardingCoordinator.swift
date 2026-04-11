@@ -7,6 +7,7 @@ enum OnboardingStep: Hashable {
     case dailyCheckin
     case permissions
     case paywall
+    case userName
 }
 
 @Observable

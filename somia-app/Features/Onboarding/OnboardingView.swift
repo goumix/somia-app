@@ -14,6 +14,7 @@ struct OnboardingView: View {
                     case .dailyCheckin:   DailyCheckinScreen()
                     case .permissions:    PermissionsScreen()
                     case .paywall:        PaywallScreen()
+                    case .userName:       UserNameScreen()
                     }
                 }
         }
