@@ -105,6 +105,12 @@ final class DashboardViewModel {
 
     var recoveryProgress: Double { (recoveryScore ?? 0) / 100.0 }
 
+    /// Score d'effort 0–100.
+    /// TODO: remplacer par une formule basée sur HRV + activité physique.
+    var effortScore: Double? { nil }
+
+    var effortProgress: Double { (effortScore ?? 0) / 100.0 }
+
     // MARK: - Ring Progress
 
     var hrvProgress: Double { (hrvScore ?? 0) / 100.0 }

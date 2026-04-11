@@ -288,13 +288,13 @@ struct DashboardView: View {
                 .tracking(1.5)
 
             HStack(spacing: 0) {
-                // Effort — HRV normalisé 0–100 (100 ms → score 100)
-                NavigationLink(destination: EffortDetailView()) {
-                    let effortColor = vm.hrvScore.map { scoreColor(for: $0) } ?? ringNeutralColor
+                // Effort — score dédié 0–100 (algorithme à implémenter)
+                NavigationLink(destination: EffortDetailView(qualityScore: vm.effortScore.map { Int($0) })) {
+                    let effortColor = vm.effortScore.map { scoreColor(for: $0) } ?? ringNeutralColor
                     RingMetricView(
                         label: "Effort",
-                        value: vm.hrvScore.map { "\(Int($0))" } ?? "--",
-                        progress: vm.hrvProgress,
+                        value: vm.effortScore.map { "\(Int($0))" } ?? "--",
+                        progress: vm.effortProgress,
                         gradientColors: [effortColor, effortColor]
                     )
                     .frame(maxWidth: .infinity)
