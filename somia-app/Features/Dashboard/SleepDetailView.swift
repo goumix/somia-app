@@ -226,34 +226,28 @@ struct SleepDetailView: View {
     }
 
     private func sleepScoreDonut(result: SleepScoreCalculator.Result?) -> some View {
-        HStack(spacing: 24) {
-            ZStack {
-                Chart(scoreSegments(for: result)) { seg in
-                    SectorMark(
-                        angle: .value("Points", seg.points),
-                        innerRadius: .ratio(0.65),
-                        angularInset: 2.0
-                    )
-                    .foregroundStyle(seg.color)
-                }
-                .frame(width: 160, height: 160)
+        let size: CGFloat = 200
+        return ZStack {
+            Chart(scoreSegments(for: result)) { seg in
+                SectorMark(
+                    angle: .value("Points", seg.points),
+                    innerRadius: .ratio(0.72),
+                    angularInset: result != nil ? 2.5 : 0
+                )
+                .foregroundStyle(seg.color)
+            }
+            .frame(width: size, height: size)
 
+            VStack(spacing: 2) {
                 Text(result.map { "\($0.total)" } ?? "--")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .font(.system(size: 52, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
                 Text(result?.label ?? "--")
-                    .font(.title3.bold())
-                    .foregroundStyle(.white)
-                Text("sur 100")
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(.white.opacity(0.5))
             }
-
-            Spacer()
         }
+        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
         .padding(.vertical, 8)
     }
 
