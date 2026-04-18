@@ -7,6 +7,7 @@
 
 import SwiftUI
 import HealthKit
+import Charts
 
 // MARK: - ViewModel
 
@@ -68,6 +69,29 @@ private final class SleepViewModel {
         return hours > 0 ? "\(hours)h \(mins)min" : "\(mins)min"
     }
 
+    // MARK: - Sleep Score
+
+    func sleepScore(for date: Date) -> SleepScoreCalculator.Result? {
+        let cal = Calendar.current
+        guard let previousDay = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: date)) else { return nil }
+        let nightSamples = healthKit.sleepSamples.filter {
+            cal.isDate($0.startDate, inSameDayAs: previousDay)
+        }
+        return SleepScoreCalculator.score(nightSamples: nightSamples, historicalStarts: historicalBedtimes())
+    }
+
+    private func historicalBedtimes() -> [Date] {
+        let cal = Calendar.current
+        var byDay: [Date: Date] = [:]
+        for sample in healthKit.sleepSamples {
+            let day = cal.startOfDay(for: sample.startDate)
+            if byDay[day] == nil || sample.startDate < byDay[day]! {
+                byDay[day] = sample.startDate
+            }
+        }
+        return Array(byDay.values).sorted()
+    }
+
     // MARK: - Métriques sommeil (nuit précédant date)
 
     func sleepData(for date: Date) -> (inBed: Double?, asleep: Double?) {
@@ -109,10 +133,6 @@ struct SleepDetailView: View {
     @State private var selectedDate: Date = .init()
     @State private var showDatePicker = false
 
-    private var score: Double?    { vm?.score(for: selectedDate) }
-    private var progress: Double  { (score ?? 0) / 100.0 }
-    private var ringColor: Color  { score.map { scoreColor(for: $0) } ?? ringNeutralColor }
-
     private var inBedDisplay: String {
         guard let vm else { return "--" }
         guard let hours = vm.sleepData(for: selectedDate).inBed else { return "--" }
@@ -134,7 +154,7 @@ struct SleepDetailView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 datePicker
-                scoreRing
+                sleepScoreDonut(result: vm?.sleepScore(for: selectedDate))
                 HStack(spacing: 12) {
                     metricCard(label: "Temps au lit",       value: inBedDisplay)
                     metricCard(label: "Durée du sommeil",   value: asleepDisplay)
@@ -184,30 +204,56 @@ struct SleepDetailView: View {
         }
     }
 
-    private var scoreRing: some View {
-        let size: CGFloat = 200
-        let lw:   CGFloat = 20
-        return ZStack {
-            Circle()
-                .stroke(Color.white.opacity(0.07), lineWidth: lw)
-                .frame(width: size, height: size)
-            Circle()
-                .trim(from: 0, to: CGFloat(qualityScore.map { Double($0) / 100.0 } ?? 0.0))
-                .stroke(Color.somiaAccent, style: StrokeStyle(lineWidth: lw, lineCap: .round))
-                .frame(width: size, height: size)
-                .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.7), value: qualityScore.map { Double($0) / 100.0 } ?? 0.0)
-                .shadow(color: Color.somiaAccent.opacity(0.4), radius: 12)
-            VStack(spacing: 2) {
-                Text(qualityScore.map { "\($0)" } ?? "--")
-                    .font(.system(size: 52, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("Qualité")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
-            }
+    // MARK: - Score Donut
+
+    private struct ScoreSegment: Identifiable {
+        let id: String
+        let points: Int
+        let color: Color
+    }
+
+    private func scoreSegments(for result: SleepScoreCalculator.Result?) -> [ScoreSegment] {
+        guard let result else {
+            return [.init(id: "empty", points: 100, color: .white.opacity(0.07))]
         }
-        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
+        var segs: [ScoreSegment] = []
+        if result.durationPoints      > 0 { segs.append(.init(id: "duration",      points: result.durationPoints,      color: .somiaAccent)) }
+        if result.bedtimePoints       > 0 { segs.append(.init(id: "bedtime",       points: result.bedtimePoints,       color: .somiaWarn)) }
+        if result.interruptionPoints  > 0 { segs.append(.init(id: "interruptions", points: result.interruptionPoints,  color: .somiaGreenSoft)) }
+        let empty = 100 - result.total
+        if empty > 0 { segs.append(.init(id: "empty", points: empty, color: .white.opacity(0.07))) }
+        return segs
+    }
+
+    private func sleepScoreDonut(result: SleepScoreCalculator.Result?) -> some View {
+        HStack(spacing: 24) {
+            ZStack {
+                Chart(scoreSegments(for: result)) { seg in
+                    SectorMark(
+                        angle: .value("Points", seg.points),
+                        innerRadius: .ratio(0.65),
+                        angularInset: 2.0
+                    )
+                    .foregroundStyle(seg.color)
+                }
+                .frame(width: 160, height: 160)
+
+                Text(result.map { "\($0.total)" } ?? "--")
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(result?.label ?? "--")
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+                Text("sur 100")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.4))
+            }
+
+            Spacer()
+        }
         .padding(.vertical, 8)
     }
 
