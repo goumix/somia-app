@@ -115,4 +115,27 @@ struct SleepScoreCalculator {
         default:    return "Très faible"
         }
     }
+
+    // MARK: - Extraction helpers
+
+    /// All samples belonging to the most recent sleep night in the array.
+    static func lastNightSamples(from samples: [HKCategorySample]) -> [HKCategorySample] {
+        guard let latestStart = samples.map(\.startDate).max() else { return [] }
+        let cal = Calendar.current
+        let referenceDay = cal.startOfDay(for: latestStart)
+        return samples.filter { cal.startOfDay(for: $0.startDate) == referenceDay }
+    }
+
+    /// One bedtime (earliest startDate) per calendar day — used to build the 30-day median baseline.
+    static func historicalBedtimes(from samples: [HKCategorySample]) -> [Date] {
+        let cal = Calendar.current
+        var byDay: [Date: Date] = [:]
+        for sample in samples {
+            let day = cal.startOfDay(for: sample.startDate)
+            if byDay[day] == nil || sample.startDate < byDay[day]! {
+                byDay[day] = sample.startDate
+            }
+        }
+        return Array(byDay.values).sorted()
+    }
 }

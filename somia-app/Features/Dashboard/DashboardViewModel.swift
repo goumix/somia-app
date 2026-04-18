@@ -90,10 +90,17 @@ final class DashboardViewModel {
         latestHRV.map { min($0 / 100.0, 1.0) * 100 }
     }
 
-    /// Sleep duration mapped to 0–100. 9 h → score 100 (capped).
+    /// Full composite sleep score result — nil when data is unavailable.
+    var sleepScoreResult: SleepScoreCalculator.Result? {
+        SleepScoreCalculator.score(
+            nightSamples: SleepScoreCalculator.lastNightSamples(from: healthKit.sleepSamples),
+            historicalStarts: SleepScoreCalculator.historicalBedtimes(from: healthKit.sleepSamples)
+        )
+    }
+
+    /// Composite sleep score 0–100 — derived from sleepScoreResult.
     var sleepScore: Double? {
-        guard lastNightSleep > 0 else { return nil }
-        return min(lastNightSleep / 9.0, 1.0) * 100
+        sleepScoreResult.map { Double($0.total) }
     }
 
     /// SpO2 is already in % — exposed as a 0–100 score.

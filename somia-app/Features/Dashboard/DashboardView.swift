@@ -7,6 +7,7 @@
 
 import SwiftUI
 import HealthKit
+import Charts
 
 // MARK: - RingMetricView
 
@@ -105,6 +106,59 @@ struct MetricCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.somiaCardBorder, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - SleepScoreRingView
+
+private struct SleepScoreRingView: View {
+    let result: SleepScoreCalculator.Result?
+    let label: String
+
+    private struct Segment: Identifiable {
+        let id: String; let points: Int; let color: Color
+    }
+
+    private var segments: [Segment] {
+        guard let r = result else {
+            return [.init(id: "empty", points: 100, color: .white.opacity(0.07))]
+        }
+        var s: [Segment] = []
+        if r.durationPoints     > 0 { s.append(.init(id: "dur",   points: r.durationPoints,     color: .somiaAccent)) }
+        if r.bedtimePoints      > 0 { s.append(.init(id: "bed",   points: r.bedtimePoints,      color: .somiaWarn)) }
+        if r.interruptionPoints > 0 { s.append(.init(id: "inter", points: r.interruptionPoints, color: .somiaGreenSoft)) }
+        let empty = 100 - r.total
+        if empty > 0 { s.append(.init(id: "empty", points: empty, color: .white.opacity(0.07))) }
+        return s
+    }
+
+    private let ringSize: CGFloat = 96
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Chart(segments) { seg in
+                    SectorMark(
+                        angle: .value("pts", seg.points),
+                        innerRadius: .ratio(0.72),
+                        angularInset: result != nil ? 2.5 : 0
+                    )
+                    .foregroundStyle(seg.color)
+                }
+                .frame(width: ringSize, height: ringSize)
+
+                Text(result.map { "\($0.total)" } ?? "--")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+            }
+            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 3)
+
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.somiaBodyText)
+        }
     }
 }
 
@@ -314,16 +368,10 @@ struct DashboardView: View {
                 }
                 .buttonStyle(.plain)
 
-                // Sommeil — score qualité 0–100
+                // Sommeil — segmented donut via SleepScoreCalculator
                 NavigationLink(destination: SleepDetailView(qualityScore: vm.sleepScore.map { Int($0) })) {
-                    let sleepQualityColor = vm.sleepScore.map { scoreColor(for: $0) } ?? ringNeutralColor
-                    RingMetricView(
-                        label: "Sommeil",
-                        value: vm.sleepScore.map { "\(Int($0))" } ?? "--",
-                        progress: vm.sleepProgress,
-                        gradientColors: [sleepQualityColor, sleepQualityColor]
-                    )
-                    .frame(maxWidth: .infinity)
+                    SleepScoreRingView(result: vm.sleepScoreResult, label: "Sommeil")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
             }
