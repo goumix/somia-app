@@ -42,3 +42,15 @@ enum SomiaRadius {
     static let lg:   CGFloat = 24
     static let pill: CGFloat = 100
 }
+
+// MARK: - Score color helper
+
+extension Color {
+    static func scoreColor(for score: Double) -> Color {
+        switch score {
+        case ..<40: return .somiaDrift
+        case ..<70: return .somiaWarn
+        default:    return .somiaAccent
+        }
+    }
+}

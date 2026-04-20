@@ -5,23 +5,6 @@
 
 import SwiftUI
 
-// MARK: - Shared Card Style
-
-struct DriftCardStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(16)
-            .background(Color.somiaCard)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-}
-
-extension View {
-    func driftCardStyle() -> some View {
-        modifier(DriftCardStyle())
-    }
-}
-
 // MARK: - DriftScoreCard
 
 /// Card 1 — "1 mois" : score composite instantané, barre dégradée, insight contextuel.

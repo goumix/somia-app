@@ -69,7 +69,7 @@ struct RecoveryDetailView: View {
     @State private var showDatePicker = false
 
     private var progress: Double  { qualityScore.map { Double($0) / 100.0 } ?? 0.0 }
-    private var ringColor: Color  { qualityScore.map { scoreColor(for: Double($0)) } ?? ringNeutralColor }
+    private var ringColor: Color  { qualityScore.map { Color.scoreColor(for: Double($0)) } ?? .somiaBodyText }
 
     private var hrvDisplay: String {
         guard let vm, let hrv = vm.latestHRV(for: selectedDate) else { return "--" }

@@ -32,6 +32,23 @@ struct SomiaCard<Content: View>: View {
     }
 }
 
+// MARK: - DriftCardStyle
+
+struct DriftCardStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(SomiaSpacing.md)
+            .background(Color.somiaCard)
+            .clipShape(RoundedRectangle(cornerRadius: SomiaRadius.md))
+    }
+}
+
+extension View {
+    func driftCardStyle() -> some View {
+        modifier(DriftCardStyle())
+    }
+}
+
 #Preview {
     VStack(spacing: SomiaSpacing.md) {
         ZStack {

@@ -162,19 +162,6 @@ private struct SleepScoreRingView: View {
     }
 }
 
-// MARK: - Score Color (module-level — shared with detail views)
-
-/// Maps a 0–100 score to theme colors: somiaDrift (<40) → somiaWarn (<70) → somiaAccent (≥70).
-func scoreColor(for score: Double) -> Color {
-    switch score {
-    case ..<40: return .somiaDrift
-    case ..<70: return .somiaWarn
-    default:    return .somiaAccent
-    }
-}
-
-let ringNeutralColor: Color = .somiaBodyText
-
 // MARK: - DashboardView
 
 struct DashboardView: View {
@@ -344,7 +331,7 @@ struct DashboardView: View {
             HStack(spacing: 0) {
                 // Effort — score dédié 0–100 (algorithme à implémenter)
                 NavigationLink(destination: EffortDetailView(qualityScore: vm.effortScore.map { Int($0) })) {
-                    let effortColor = vm.effortScore.map { scoreColor(for: $0) } ?? ringNeutralColor
+                    let effortColor = vm.effortScore.map { Color.scoreColor(for: $0) } ?? Color.somiaBodyText
                     RingMetricView(
                         label: "Effort",
                         value: vm.effortScore.map { "\(Int($0))" } ?? "--",
@@ -357,7 +344,7 @@ struct DashboardView: View {
 
                 // Récupération — score dédié 0–100 (algorithme à implémenter)
                 NavigationLink(destination: RecoveryDetailView(qualityScore: vm.recoveryScore.map { Int($0) })) {
-                    let recoveryColor = vm.recoveryScore.map { scoreColor(for: $0) } ?? ringNeutralColor
+                    let recoveryColor = vm.recoveryScore.map { Color.scoreColor(for: $0) } ?? Color.somiaBodyText
                     RingMetricView(
                         label: "Récupération",
                         value: vm.recoveryScore.map { "\(Int($0))" } ?? "--",
