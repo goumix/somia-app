@@ -78,9 +78,6 @@ struct EffortDetailView: View {
     @State private var selectedDate: Date = .init()
     @State private var showDatePicker = false
 
-    private var progress: Double  { qualityScore.map { Double($0) / 100.0 } ?? 0.0 }
-    private var ringColor: Color  { qualityScore.map { Color.scoreColor(for: Double($0)) } ?? .somiaBodyText }
-
     private var exerciseDisplay: String {
         guard let vm, let min = vm.exerciseMinutes else { return "--" }
         return "\(Int(min)) min"
@@ -105,7 +102,8 @@ struct EffortDetailView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 datePicker
-                scoreRing
+                ScoreRingView(score: qualityScore.map(Double.init), size: 200)
+                    .padding(.vertical, 8)
                 HStack(spacing: 12) {
                     metricCard(label: "Durée de l'exercice", value: exerciseDisplay)
                     metricCard(label: "Calories brûlées",    value: caloriesDisplay)
@@ -149,28 +147,6 @@ struct EffortDetailView: View {
                 .presentationDetents([.medium])
                 .tint(Color.somiaAccent)
         }
-    }
-
-    private var scoreRing: some View {
-        let size: CGFloat = 200
-        let lw:   CGFloat = 20
-        return ZStack {
-            Circle()
-                .stroke(Color.white.opacity(0.07), lineWidth: lw)
-                .frame(width: size, height: size)
-            Circle()
-                .trim(from: 0, to: CGFloat(progress))
-                .stroke(ringColor, style: StrokeStyle(lineWidth: lw, lineCap: .round))
-                .frame(width: size, height: size)
-                .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.7), value: progress)
-                .shadow(color: ringColor.opacity(0.4), radius: 12)
-            Text(qualityScore.map { "\($0)" } ?? "--")
-                .font(.system(size: 52, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-        }
-        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
-        .padding(.vertical, 8)
     }
 
     private func metricCard(label: String, value: String) -> some View {

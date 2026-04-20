@@ -9,61 +9,6 @@ import SwiftUI
 import HealthKit
 import Charts
 
-// MARK: - RingMetricView
-
-struct RingMetricView: View {
-    let label: String
-    let value: String
-    let progress: Double
-    /// Two colors defining the gradient arc: [startColor, endColor].
-    let gradientColors: [Color]
-
-    private let ringSize: CGFloat = 96
-    private let lineWidth: CGFloat = 13
-
-    var body: some View {
-        VStack(spacing: 10) {
-            ZStack {
-                // Background track
-                Circle()
-                    .stroke(Color.white.opacity(0.07), lineWidth: lineWidth)
-                    .frame(width: ringSize, height: ringSize)
-
-                // Progress arc with gradient
-                Circle()
-                    .trim(from: 0, to: CGFloat(max(0, min(1, progress))))
-                    .stroke(
-                        LinearGradient(
-                            colors: gradientColors,
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                    )
-                    .frame(width: ringSize, height: ringSize)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeOut(duration: 0.7), value: progress)
-                    .shadow(color: (gradientColors.last ?? .white).opacity(0.4), radius: 8)
-
-                // Center value
-                Text(value)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .minimumScaleFactor(0.5)
-                    .lineLimit(1)
-                    .frame(width: ringSize - lineWidth * 2 - 8)
-                    .multilineTextAlignment(.center)
-            }
-            // Subtle depth shadow on the whole ring
-            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 3)
-
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color(red: 0.557, green: 0.557, blue: 0.576)) // #8E8E93
-        }
-    }
-}
-
 // MARK: - MetricCard
 
 struct MetricCard: View {
@@ -331,27 +276,15 @@ struct DashboardView: View {
             HStack(spacing: 0) {
                 // Effort — score dédié 0–100 (algorithme à implémenter)
                 NavigationLink(destination: EffortDetailView(qualityScore: vm.effortScore.map { Int($0) })) {
-                    let effortColor = vm.effortScore.map { Color.scoreColor(for: $0) } ?? Color.somiaBodyText
-                    RingMetricView(
-                        label: "Effort",
-                        value: vm.effortScore.map { "\(Int($0))" } ?? "--",
-                        progress: vm.effortProgress,
-                        gradientColors: [effortColor, effortColor]
-                    )
-                    .frame(maxWidth: .infinity)
+                    ScoreRingView(score: vm.effortScore, label: "Effort")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
 
                 // Récupération — score dédié 0–100 (algorithme à implémenter)
                 NavigationLink(destination: RecoveryDetailView(qualityScore: vm.recoveryScore.map { Int($0) })) {
-                    let recoveryColor = vm.recoveryScore.map { Color.scoreColor(for: $0) } ?? Color.somiaBodyText
-                    RingMetricView(
-                        label: "Récupération",
-                        value: vm.recoveryScore.map { "\(Int($0))" } ?? "--",
-                        progress: vm.recoveryProgress,
-                        gradientColors: [recoveryColor, recoveryColor]
-                    )
-                    .frame(maxWidth: .infinity)
+                    ScoreRingView(score: vm.recoveryScore, label: "Récupération")
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
 
