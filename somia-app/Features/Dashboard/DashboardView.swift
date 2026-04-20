@@ -9,51 +9,6 @@ import SwiftUI
 import HealthKit
 import Charts
 
-// MARK: - MetricCard
-
-struct MetricCard: View {
-    let label: String
-    let value: String
-    let trend: String
-    let trendColor: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(label)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(Color.somiaBodyText)
-                .tracking(0.6)
-
-            Spacer().frame(height: 8)
-
-            Text(value)
-                .font(.system(size: 26, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-
-            Spacer()
-
-            // Pill-shaped trend label
-            Text(trend)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(trendColor)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 4)
-                .background(trendColor.opacity(0.13))
-                .clipShape(Capsule())
-        }
-        .frame(maxWidth: .infinity, minHeight: 110, alignment: .leading)
-        .padding(16)
-        .background(Color.somiaCard)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.somiaCardBorder, lineWidth: 1)
-        )
-    }
-}
-
 // MARK: - DashboardView
 
 struct DashboardView: View {
