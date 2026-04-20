@@ -7,7 +7,6 @@
 
 import SwiftUI
 import HealthKit
-import Charts
 
 // MARK: - ViewModel
 
@@ -154,7 +153,8 @@ struct SleepDetailView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 datePicker
-                sleepScoreDonut(result: vm?.sleepScore(for: selectedDate))
+                ScoreDonutView(result: vm?.sleepScore(for: selectedDate), size: 200)
+                    .padding(.vertical, 8)
                 HStack(spacing: 12) {
                     metricCard(label: "Temps au lit",       value: inBedDisplay)
                     metricCard(label: "Durée du sommeil",   value: asleepDisplay)
@@ -202,53 +202,6 @@ struct SleepDetailView: View {
                 .presentationDetents([.medium])
                 .tint(Color.somiaAccent)
         }
-    }
-
-    // MARK: - Score Donut
-
-    private struct ScoreSegment: Identifiable {
-        let id: String
-        let points: Int
-        let color: Color
-    }
-
-    private func scoreSegments(for result: SleepScoreCalculator.Result?) -> [ScoreSegment] {
-        guard let result else {
-            return [.init(id: "empty", points: 100, color: .white.opacity(0.07))]
-        }
-        var segs: [ScoreSegment] = []
-        if result.durationPoints      > 0 { segs.append(.init(id: "duration",      points: result.durationPoints,      color: .somiaAccent)) }
-        if result.bedtimePoints       > 0 { segs.append(.init(id: "bedtime",       points: result.bedtimePoints,       color: .somiaWarn)) }
-        if result.interruptionPoints  > 0 { segs.append(.init(id: "interruptions", points: result.interruptionPoints,  color: .somiaGreenSoft)) }
-        let empty = 100 - result.total
-        if empty > 0 { segs.append(.init(id: "empty", points: empty, color: .white.opacity(0.07))) }
-        return segs
-    }
-
-    private func sleepScoreDonut(result: SleepScoreCalculator.Result?) -> some View {
-        let size: CGFloat = 200
-        return ZStack {
-            Chart(scoreSegments(for: result)) { seg in
-                SectorMark(
-                    angle: .value("Points", seg.points),
-                    innerRadius: .ratio(0.72),
-                    angularInset: result != nil ? 2.5 : 0
-                )
-                .foregroundStyle(seg.color)
-            }
-            .frame(width: size, height: size)
-
-            VStack(spacing: 2) {
-                Text(result.map { "\($0.total)" } ?? "--")
-                    .font(.system(size: 52, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text(result?.label ?? "--")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-        }
-        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
-        .padding(.vertical, 8)
     }
 
     private func metricCard(label: String, value: String) -> some View {
