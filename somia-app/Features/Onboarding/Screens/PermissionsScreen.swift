@@ -82,12 +82,12 @@ struct PermissionsScreen: View {
 
                 Spacer()
 
-                OnboardingCTAButton(title: "Autoriser l'accès", action: {
+                SomiaButton(title: "Autoriser l'accès") {
                     Task {
                         await healthKit.requestAuthorization()
                         coordinator.navigate(to: .userName)
                     }
-                })
+                }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 52)
                 .opacity(appeared ? 1.0 : 0.0)

@@ -58,7 +58,7 @@ struct UserNameScreen: View {
                 Spacer()
 
                 // CTA
-                OnboardingCTAButton(title: "Continuer") {
+                SomiaButton(title: "Continuer") {
                     userName = trimmedName
                     coordinator.completeOnboarding()
                 }

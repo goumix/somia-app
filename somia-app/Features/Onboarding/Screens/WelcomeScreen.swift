@@ -49,7 +49,7 @@ struct WelcomeScreen: View {
 
                 Spacer()
 
-                OnboardingCTAButton(title: "Commencer", action: { coordinator.navigate(to: .driftDetection) })
+                SomiaButton(title: "Commencer") { coordinator.navigate(to: .driftDetection) }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 52)
                     .opacity(appeared ? 1.0 : 0.0)

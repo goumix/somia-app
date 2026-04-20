@@ -48,7 +48,7 @@ struct DailyCheckinScreen: View {
 
                 Spacer()
 
-                OnboardingCTAButton(title: "Continuer", action: { coordinator.navigate(to: .permissions) })
+                SomiaButton(title: "Continuer") { coordinator.navigate(to: .permissions) }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 52)
                     .opacity(appeared ? 1.0 : 0.0)

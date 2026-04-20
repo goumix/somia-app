@@ -48,7 +48,7 @@ struct DriftDetectionScreen: View {
 
                 Spacer()
 
-                OnboardingCTAButton(title: "Continuer", action: { coordinator.navigate(to: .baseline) })
+                SomiaButton(title: "Continuer") { coordinator.navigate(to: .baseline) }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 52)
                     .opacity(appeared ? 1.0 : 0.0)
