@@ -105,11 +105,11 @@ struct EffortDetailView: View {
                 ScoreRingView(score: qualityScore.map(Double.init), size: 200)
                     .padding(.vertical, 8)
                 HStack(spacing: 12) {
-                    metricCard(label: "Durée de l'exercice", value: exerciseDisplay)
-                    metricCard(label: "Calories brûlées",    value: caloriesDisplay)
+                    MetricCell(label: "Durée de l'exercice", value: exerciseDisplay)
+                    MetricCell(label: "Calories brûlées",    value: caloriesDisplay)
                 }
-                metricCard(label: "FC maximale du jour", value: peakHRDisplay)
-                metricCard(label: "Compteur de pas",     value: stepsDisplay)
+                MetricCell(label: "FC maximale du jour", value: peakHRDisplay)
+                MetricCell(label: "Compteur de pas",     value: stepsDisplay)
             }
             .padding(.horizontal, 16)
             .padding(.top, 24)
@@ -149,18 +149,4 @@ struct EffortDetailView: View {
         }
     }
 
-    private func metricCard(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.5))
-            Text(value)
-                .font(.title2.bold())
-                .foregroundStyle(.white)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
 }

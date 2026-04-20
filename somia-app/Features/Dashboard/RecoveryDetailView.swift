@@ -85,13 +85,13 @@ struct RecoveryDetailView: View {
                 ScoreRingView(score: qualityScore.map(Double.init), size: 200)
                     .padding(.vertical, 8)
                 HStack(spacing: 12) {
-                    metricCard(label: "HRV au repos", value: hrvDisplay)
-                    metricCard(label: "FC au repos",  value: rhrDisplay)
+                    MetricCell(label: "HRV au repos", value: hrvDisplay)
+                    MetricCell(label: "FC au repos",  value: rhrDisplay)
                 }
-                metricCard(label: "Fréquence respiratoire", value: vm?.respiratoryRateDisplay ?? "--")
+                MetricCell(label: "Fréquence respiratoire", value: vm?.respiratoryRateDisplay ?? "--")
                 HStack(spacing: 12) {
-                    metricCard(label: "SpO2",                 value: vm?.spo2Display ?? "--")
-                    metricCard(label: "Écart temp. poignet",  value: vm?.wristTempDisplay ?? "--")
+                    MetricCell(label: "SpO2",                 value: vm?.spo2Display ?? "--")
+                    MetricCell(label: "Écart temp. poignet",  value: vm?.wristTempDisplay ?? "--")
                 }
             }
             .padding(.horizontal, 16)
@@ -131,18 +131,4 @@ struct RecoveryDetailView: View {
         }
     }
 
-    private func metricCard(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.5))
-            Text(value)
-                .font(.title2.bold())
-                .foregroundStyle(.white)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
 }

@@ -156,13 +156,13 @@ struct SleepDetailView: View {
                 ScoreDonutView(result: vm?.sleepScore(for: selectedDate), size: 200)
                     .padding(.vertical, 8)
                 HStack(spacing: 12) {
-                    metricCard(label: "Temps au lit",       value: inBedDisplay)
-                    metricCard(label: "Durée du sommeil",   value: asleepDisplay)
+                    MetricCell(label: "Temps au lit",       value: inBedDisplay)
+                    MetricCell(label: "Durée du sommeil",   value: asleepDisplay)
                 }
                 sleepPeriodCard
                 HStack(spacing: 12) {
-                    metricCard(label: "Sommeil paradoxal", value: vm?.remDisplay ?? "--")
-                    metricCard(label: "Sommeil profond",   value: vm?.deepDisplay ?? "--")
+                    MetricCell(label: "Sommeil paradoxal", value: vm?.remDisplay ?? "--")
+                    MetricCell(label: "Sommeil profond",   value: vm?.deepDisplay ?? "--")
                 }
                 nightlyHeartRateCard
                 hrDropCard
@@ -202,21 +202,6 @@ struct SleepDetailView: View {
                 .presentationDetents([.medium])
                 .tint(Color.somiaAccent)
         }
-    }
-
-    private func metricCard(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.5))
-            Text(value)
-                .font(.title2.bold())
-                .foregroundStyle(.white)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color.white.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     private var sleepPeriodCard: some View {
