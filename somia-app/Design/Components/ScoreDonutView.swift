@@ -14,9 +14,9 @@ struct ScoreDonutView: View {
             return [.init(id: "empty", points: 100, color: .white.opacity(0.07))]
         }
         var s: [Segment] = []
+        if r.interruptionPoints > 0 { s.append(.init(id: "inter", points: r.interruptionPoints, color: .somiaGreenSoft)) }
         if r.durationPoints     > 0 { s.append(.init(id: "dur",   points: r.durationPoints,     color: .somiaAccent)) }
         if r.bedtimePoints      > 0 { s.append(.init(id: "bed",   points: r.bedtimePoints,      color: .somiaWarn)) }
-        if r.interruptionPoints > 0 { s.append(.init(id: "inter", points: r.interruptionPoints, color: .somiaGreenSoft)) }
         let empty = 100 - r.total
         if empty > 0 { s.append(.init(id: "empty", points: empty, color: .white.opacity(0.07))) }
         return s
@@ -30,6 +30,7 @@ struct ScoreDonutView: View {
                     innerRadius: .ratio(0.72),
                     angularInset: result != nil ? 2.5 : 0
                 )
+                .cornerRadius(4)
                 .foregroundStyle(seg.color)
             }
             .frame(width: size, height: size)
