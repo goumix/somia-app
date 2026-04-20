@@ -1,44 +1,48 @@
 import SwiftUI
 
 struct ToolsView: View {
+    @State private var selectedTool: Tool? = nil
+
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    NavigationLink(destination: CoherenceCardiaqueView()) {
-                        ToolCard(
-                            icon: "heart.circle",
-                            title: "Cohérence cardiaque",
-                            subtitle: "Exercice de respiration guidée"
-                        ) {}
+            ZStack {
+                Color.somiaBackground.ignoresSafeArea()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: SomiaSpacing.lg) {
+                        headerSection
+                        VStack(spacing: SomiaSpacing.sm) {
+                            ForEach(Tool.allCases) { tool in
+                                ToolRow(
+                                    tool: tool,
+                                    isExpanded: selectedTool == tool,
+                                    onTap: {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            selectedTool = selectedTool == tool ? nil : tool
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-
-                    NavigationLink(destination: ExportDonneesView()) {
-                        ToolCard(
-                            icon: "square.and.arrow.up",
-                            title: "Export de données",
-                            subtitle: "Exporter vos données de santé"
-                        ) {}
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-
-                    NavigationLink(destination: PriseInsulineView()) {
-                        ToolCard(
-                            icon: "syringe",
-                            title: "Prise d'insuline",
-                            subtitle: "Enregistrer une mesure d'insuline"
-                        ) {}
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
+                    .padding(SomiaSpacing.md)
                 }
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Outils")
+            .navigationBarHidden(true)
         }
+    }
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: SomiaSpacing.xs) {
+            Text("OUTILS")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.somiaBodyText)
+                .tracking(1.5)
+            Text("Explorez")
+                .font(.somiaLargeTitle)
+                .foregroundStyle(.white)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
