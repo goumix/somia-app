@@ -85,7 +85,7 @@ struct PermissionsScreen: View {
                 OnboardingCTAButton(title: "Autoriser l'accès", action: {
                     Task {
                         await healthKit.requestAuthorization()
-                        coordinator.navigate(to: .paywall)
+                        coordinator.navigate(to: .userName)
                     }
                 })
                 .padding(.horizontal, 24)

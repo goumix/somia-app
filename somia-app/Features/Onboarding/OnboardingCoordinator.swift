@@ -6,7 +6,6 @@ enum OnboardingStep: Hashable {
     case baseline
     case dailyCheckin
     case permissions
-    case paywall
     case userName
 }
 
