@@ -347,7 +347,7 @@ final class HealthKitManagerMock: HealthKitManaging {
         }
     }
 
-    // MARK: - Tier 1 — Resting Heart Rate — 30 days, 55–65 bpm, slight downward trend
+    // MARK: - Tier 1 — Resting Heart Rate — 60 days, 55–65 bpm, slight downward trend
 
     private static func makeRestingHeartRateSamples() -> [HKQuantitySample] {
         let calendar = Calendar.current
@@ -358,9 +358,9 @@ final class HealthKitManagerMock: HealthKitManaging {
 
         var samples: [HKQuantitySample] = []
 
-        for offset in 0..<30 {
+        for offset in 0..<60 {
             guard
-                let day   = calendar.date(byAdding: .day, value: -(30 - offset), to: today),
+                let day   = calendar.date(byAdding: .day, value: -(60 - offset), to: today),
                 let start = calendar.date(bySettingHour: 6,
                                           minute: Int.random(in: 0...30, using: &rng),
                                           second: 0, of: day),
@@ -368,8 +368,8 @@ final class HealthKitManagerMock: HealthKitManaging {
             else { continue }
 
             var rhr = Double.random(in: 55...65, using: &rng)
-            if offset >= 20 {
-                rhr -= Double(offset - 20) * 0.2
+            if offset >= 50 {
+                rhr -= Double(offset - 50) * 0.2
             }
 
             samples.append(HKQuantitySample(
@@ -382,7 +382,7 @@ final class HealthKitManagerMock: HealthKitManaging {
         return samples.sorted { $0.startDate > $1.startDate }
     }
 
-    // MARK: - Tier 1 — SpO2 — 30 days, 96–99 %
+    // MARK: - Tier 1 — SpO2 — 60 days, 96–99 % (nightly at ~3am)
 
     private static func makeSpO2Samples() -> [HKQuantitySample] {
         let calendar = Calendar.current
@@ -393,9 +393,9 @@ final class HealthKitManagerMock: HealthKitManaging {
 
         var samples: [HKQuantitySample] = []
 
-        for offset in 0..<30 {
+        for offset in 0..<60 {
             guard
-                let day   = calendar.date(byAdding: .day, value: -(30 - offset), to: today),
+                let day   = calendar.date(byAdding: .day, value: -(60 - offset), to: today),
                 let start = calendar.date(bySettingHour: 3,
                                           minute: Int.random(in: 0...59, using: &rng),
                                           second: 0, of: day),
@@ -414,7 +414,7 @@ final class HealthKitManagerMock: HealthKitManaging {
         return samples.sorted { $0.startDate > $1.startDate }
     }
 
-    // MARK: - Tier 1 — Respiratory Rate — 30 days, 14–18 breaths/min
+    // MARK: - Tier 1 — Respiratory Rate — 60 days, 14–18 breaths/min
 
     private static func makeRespiratoryRateSamples() -> [HKQuantitySample] {
         let calendar = Calendar.current
@@ -425,9 +425,9 @@ final class HealthKitManagerMock: HealthKitManaging {
 
         var samples: [HKQuantitySample] = []
 
-        for offset in 0..<30 {
+        for offset in 0..<60 {
             guard
-                let day   = calendar.date(byAdding: .day, value: -(30 - offset), to: today),
+                let day   = calendar.date(byAdding: .day, value: -(60 - offset), to: today),
                 let start = calendar.date(bySettingHour: 4,
                                           minute: Int.random(in: 0...59, using: &rng),
                                           second: 0, of: day),

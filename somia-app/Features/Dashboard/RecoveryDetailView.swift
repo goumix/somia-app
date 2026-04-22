@@ -21,8 +21,6 @@ private final class RecoveryViewModel {
         self.healthKit = healthKit
     }
 
-    // MARK: - Métriques
-
     func latestHRV(for date: Date) -> Double? {
         healthKit.hrvSamples
             .first { $0.startDate <= date }
@@ -35,11 +33,9 @@ private final class RecoveryViewModel {
             .map { $0.quantity.doubleValue(for: bpmUnit) }
     }
 
-    // MARK: - Nouvelles métriques (sample le plus récent toutes dates)
-
     var respiratoryRateDisplay: String {
         guard let sample = healthKit.respiratoryRateSamples.first else { return "--" }
-        let rpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+        let rpm = sample.quantity.doubleValue(for: bpmUnit)
         return String(format: "%.1f rpm", rpm)
     }
 
@@ -61,7 +57,7 @@ private final class RecoveryViewModel {
 
 struct RecoveryDetailView: View {
 
-    let qualityScore: Int?
+    let scoreResult: RecoveryScoreCalculator.Result?
 
     @Environment(\.healthKit) private var healthKit
     @State private var vm: RecoveryViewModel?
@@ -82,7 +78,7 @@ struct RecoveryDetailView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 datePicker
-                ScoreRingView(score: qualityScore.map(Double.init), size: 200)
+                ScoreDonutView(data: scoreResult?.donutData(), size: 200)
                     .padding(.vertical, 8)
                 HStack(spacing: 12) {
                     MetricCell(label: "HRV au repos", value: hrvDisplay)
@@ -90,8 +86,11 @@ struct RecoveryDetailView: View {
                 }
                 MetricCell(label: "Fréquence respiratoire", value: vm?.respiratoryRateDisplay ?? "--")
                 HStack(spacing: 12) {
-                    MetricCell(label: "SpO2",                 value: vm?.spo2Display ?? "--")
-                    MetricCell(label: "Écart temp. poignet",  value: vm?.wristTempDisplay ?? "--")
+                    MetricCell(label: "SpO2",                value: vm?.spo2Display ?? "--")
+                    MetricCell(label: "Écart temp. poignet", value: vm?.wristTempDisplay ?? "--")
+                }
+                if let r = scoreResult {
+                    scoreBreakdownCard(r)
                 }
             }
             .padding(.horizontal, 16)
@@ -131,4 +130,54 @@ struct RecoveryDetailView: View {
         }
     }
 
+    private func scoreBreakdownCard(_ r: RecoveryScoreCalculator.Result) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Détail du score")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.5))
+            VStack(spacing: 8) {
+                breakdownRow(label: "HRV",                  pts: r.hrvPoints,   max: 35, color: .somiaAccent)
+                breakdownRow(label: "FC repos",             pts: r.rhrPoints,   max: 25, color: .somiaGreenSoft)
+                breakdownRow(label: "Sommeil",              pts: r.sleepPoints, max: 25, color: .somiaWarn)
+                breakdownRow(label: "SpO2 / Fréq. respi.", pts: r.spo2Points + r.respiPoints, max: 15, color: .white.opacity(0.4))
+                if r.coherenceMalus > 0 {
+                    HStack {
+                        Text("Malus cohérence SNA")
+                            .font(.caption)
+//                            .foregroundStyle(.somiaDrift)
+                        Spacer()
+                        Text("−\(r.coherenceMalus)")
+                            .font(.caption.bold())
+//                            .foregroundStyle(.somiaDrift)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func breakdownRow(label: String, pts: Int, max: Int, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(width: 130, alignment: .leading)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.white.opacity(0.07))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(color)
+                        .frame(width: geo.size.width * CGFloat(pts) / CGFloat(max))
+                }
+            }
+            .frame(height: 6)
+            Text("\(pts)/\(max)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.white.opacity(0.5))
+                .frame(width: 40, alignment: .trailing)
+        }
+    }
 }

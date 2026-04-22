@@ -153,7 +153,7 @@ struct SleepDetailView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 datePicker
-                ScoreDonutView(result: vm?.sleepScore(for: selectedDate), size: 200)
+                ScoreDonutView(data: vm?.sleepScore(for: selectedDate)?.donutData(), size: 200)
                     .padding(.vertical, 8)
                 HStack(spacing: 12) {
                     MetricCell(label: "Temps au lit",       value: inBedDisplay)

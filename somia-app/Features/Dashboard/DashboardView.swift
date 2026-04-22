@@ -110,6 +110,7 @@ struct DashboardView: View {
                     vm = DashboardViewModel(healthKit: healthKit)
                 }
                 await vm?.requestAuthorization()
+                await vm?.loadEffortScore()
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
@@ -176,24 +177,34 @@ struct DashboardView: View {
                 .tracking(1.5)
 
             HStack(spacing: 0) {
-                // Effort — score dédié 0–100 (algorithme à implémenter)
-                NavigationLink(destination: EffortDetailView(qualityScore: vm.effortScore.map { Int($0) })) {
-                    ScoreRingView(score: vm.effortScore, label: "Effort")
-                        .frame(maxWidth: .infinity)
+                // Effort — strain du jour via EffortScoreCalculator
+                NavigationLink(destination: EffortDetailView(scoreResult: vm.effortScoreResult)) {
+                    VStack(spacing: 10) {
+                        ScoreDonutView(data: vm.effortScoreResult?.donutData())
+                        Text("Effort")
+                            .font(.somiaCaption)
+                            .foregroundStyle(Color.somiaBodyText)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
 
-                // Récupération — score dédié 0–100 (algorithme à implémenter)
-                NavigationLink(destination: RecoveryDetailView(qualityScore: vm.recoveryScore.map { Int($0) })) {
-                    ScoreRingView(score: vm.recoveryScore, label: "Récupération")
-                        .frame(maxWidth: .infinity)
+                // Récupération — score nocturne via RecoveryScoreCalculator
+                NavigationLink(destination: RecoveryDetailView(scoreResult: vm.recoveryScoreResult)) {
+                    VStack(spacing: 10) {
+                        ScoreDonutView(data: vm.recoveryScoreResult?.donutData())
+                        Text("Récupération")
+                            .font(.somiaCaption)
+                            .foregroundStyle(Color.somiaBodyText)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.plain)
 
                 // Sommeil — segmented donut via SleepScoreCalculator
                 NavigationLink(destination: SleepDetailView(qualityScore: vm.sleepScore.map { Int($0) })) {
                     VStack(spacing: 10) {
-                        ScoreDonutView(result: vm.sleepScoreResult)
+                        ScoreDonutView(data: vm.sleepScoreResult?.donutData())
                         Text("Sommeil")
                             .font(.somiaCaption)
                             .foregroundStyle(Color.somiaBodyText)

@@ -14,7 +14,7 @@ import HealthKit
 private final class EffortViewModel {
 
     let healthKit: any HealthKitManaging
-    private let msUnit  = HKUnit.secondUnit(with: .milli)
+    private let bpmUnit = HKUnit.count().unitDivided(by: .minute())
 
     var exerciseMinutes: Double? = nil
     var activeCalories: Double?  = nil
@@ -24,8 +24,6 @@ private final class EffortViewModel {
     init(healthKit: any HealthKitManaging) {
         self.healthKit = healthKit
     }
-
-    // MARK: - Métriques (direct HKHealthStore)
 
     func loadMetrics(for date: Date) async {
         guard HKHealthStore.isHealthDataAvailable() else { return }
@@ -40,13 +38,12 @@ private final class EffortViewModel {
         let end   = cal.date(byAdding: .day, value: 1, to: start)!
         let pred  = HKQuery.predicateForSamples(withStart: start, end: end)
 
-        async let ex    = fetchQuantity(type: exerciseType, predicate: pred)
-        async let kcal  = fetchQuantity(type: energyType, predicate: pred)
-        async let steps = fetchQuantity(type: stepsType, predicate: pred)
-        async let hr    = fetchQuantity(type: hrType, predicate: pred)
+        let store = HKHealthStore()
+        async let ex    = fetchQuantity(type: exerciseType, predicate: pred, store: store)
+        async let kcal  = fetchQuantity(type: energyType,   predicate: pred, store: store)
+        async let steps = fetchQuantity(type: stepsType,    predicate: pred, store: store)
+        async let hr    = fetchQuantity(type: hrType,       predicate: pred, store: store)
         let (exSamples, kcalSamples, stepSamples, hrSamples) = await (ex, kcal, steps, hr)
-
-        let bpmUnit = HKUnit.count().unitDivided(by: .minute())
 
         exerciseMinutes = exSamples.isEmpty ? nil :
             exSamples.reduce(0) { $0 + $1.quantity.doubleValue(for: .minute()) }
@@ -58,12 +55,16 @@ private final class EffortViewModel {
             hrSamples.map { $0.quantity.doubleValue(for: bpmUnit) }.max()
     }
 
-    private func fetchQuantity(type: HKQuantityType, predicate: NSPredicate) async -> [HKQuantitySample] {
+    private func fetchQuantity(
+        type: HKQuantityType,
+        predicate: NSPredicate,
+        store: HKHealthStore
+    ) async -> [HKQuantitySample] {
         let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
             predicates: [.quantitySample(type: type, predicate: predicate)],
             sortDescriptors: []
         )
-        return (try? await descriptor.result(for: HKHealthStore())) ?? []
+        return (try? await descriptor.result(for: store)) ?? []
     }
 }
 
@@ -71,7 +72,7 @@ private final class EffortViewModel {
 
 struct EffortDetailView: View {
 
-    let qualityScore: Int?
+    let scoreResult: EffortScoreCalculator.Result?
 
     @Environment(\.healthKit) private var healthKit
     @State private var vm: EffortViewModel?
@@ -102,7 +103,7 @@ struct EffortDetailView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 24) {
                 datePicker
-                ScoreRingView(score: qualityScore.map(Double.init), size: 200)
+                ScoreDonutView(data: scoreResult?.donutData(), size: 200)
                     .padding(.vertical, 8)
                 HStack(spacing: 12) {
                     MetricCell(label: "Durée de l'exercice", value: exerciseDisplay)
@@ -148,5 +149,4 @@ struct EffortDetailView: View {
                 .tint(Color.somiaAccent)
         }
     }
-
 }
