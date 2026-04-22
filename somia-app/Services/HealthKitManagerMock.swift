@@ -46,6 +46,30 @@ enum PhysioProfile: CaseIterable {
         }
     }
 
+    /// Niveau de récupération nocturne [0–1] pilotant RHR / SpO2 / fréquence respiratoire.
+    var recoveryLevel: Double {
+        switch self {
+        case .optimalRecovery: return 1.0
+        case .progression:     return 0.75
+        case .stable:          return 0.6
+        case .mildDrift:       return 0.4
+        case .mentalOverload:  return 0.3
+        case .severeDrift:     return 0.1
+        }
+    }
+
+    /// Niveau d'effort du jour [0–1] pilotant steps / exercice / calories / FC.
+    var effortLevel: Double {
+        switch self {
+        case .optimalRecovery: return 0.2   // repos actif
+        case .progression:     return 0.65
+        case .stable:          return 0.5
+        case .mildDrift:       return 0.75  // charge élevée induisant la dérive
+        case .mentalOverload:  return 0.25  // stress mental, pas physique
+        case .severeDrift:     return 0.4
+        }
+    }
+
     /// Score composite total attendu (indicatif).
     var totalScore: Int { Int(hrvContrib + sleepContrib) }
     // optimalRecovery: +65  → "En progression forte"
@@ -61,12 +85,29 @@ enum PhysioProfile: CaseIterable {
 @Observable
 final class HealthKitManagerMock: HealthKitManaging {
 
-    // MARK: - Score Contributions (-50 pts dérive … +50 pts progression)
+    // MARK: - Score Contributions
 
-    /// Contribution de l'HRV au score composite, en points.
     var hrvScoreContribution: Double = 0
-    /// Contribution du sommeil au score composite, en points.
     var sleepScoreContribution: Double = 0
+    /// Recovery level [0–1] driving RHR / SpO2 / respiratory rate mocks.
+    var recoveryScoreContribution: Double = 0.6
+    /// Effort level [0–1] driving today's exercise / steps / calories / peak HR mock.
+    var effortScoreContribution: Double = 0.5
+
+    // MARK: - Today Effort (protocol conformance)
+
+    var todayEffort: EffortSnapshot { Self.makeEffortSnapshot(effortLevel: effortScoreContribution) }
+
+    private static func makeEffortSnapshot(effortLevel: Double) -> EffortSnapshot {
+        let level       = max(0, min(1, effortLevel))
+        let rhrBaseline = 60.0
+        return EffortSnapshot(
+            exerciseMinutes: level * 65,
+            activeCalories:  80 + level * 570,
+            steps:           2_000 + level * 11_000,
+            peakHeartRate:   rhrBaseline + 5 + level * 65
+        )
+    }
 
     // MARK: - HealthKit Data
 
@@ -150,9 +191,9 @@ final class HealthKitManagerMock: HealthKitManaging {
 
         hrvSamples              = Self.makeHRVSamples()
         sleepSamples            = Self.makeSleepSamples()
-        restingHeartRateSamples = Self.makeRestingHeartRateSamples()
-        spo2Samples             = Self.makeSpO2Samples()
-        respiratoryRateSamples  = Self.makeRespiratoryRateSamples()
+        restingHeartRateSamples = Self.makeRestingHeartRateSamples(recoveryLevel: recoveryScoreContribution)
+        spo2Samples             = Self.makeSpO2Samples(recoveryLevel: recoveryScoreContribution)
+        respiratoryRateSamples  = Self.makeRespiratoryRateSamples(recoveryLevel: recoveryScoreContribution)
         stepSamples             = Self.makeStepSamples()
         vo2MaxSamples           = Self.makeVO2MaxSamples()
         wristTemperatureSamples  = Self.makeWristTemperatureSamples()
@@ -172,9 +213,9 @@ final class HealthKitManagerMock: HealthKitManaging {
         try? await Task.sleep(for: .milliseconds(600))
         hrvSamples              = Self.makeHRVSamples(contribution: hrvScoreContribution)
         sleepSamples            = Self.makeSleepSamples(contribution: sleepScoreContribution)
-        restingHeartRateSamples = Self.makeRestingHeartRateSamples()
-        spo2Samples             = Self.makeSpO2Samples()
-        respiratoryRateSamples  = Self.makeRespiratoryRateSamples()
+        restingHeartRateSamples = Self.makeRestingHeartRateSamples(recoveryLevel: recoveryScoreContribution)
+        spo2Samples             = Self.makeSpO2Samples(recoveryLevel: recoveryScoreContribution)
+        respiratoryRateSamples  = Self.makeRespiratoryRateSamples(recoveryLevel: recoveryScoreContribution)
         stepSamples             = Self.makeStepSamples()
         vo2MaxSamples           = Self.makeVO2MaxSamples()
         wristTemperatureSamples  = Self.makeWristTemperatureSamples()
@@ -187,8 +228,10 @@ final class HealthKitManagerMock: HealthKitManaging {
 
     /// Applique un profil physiologique prédéfini et recharge les données.
     func applyProfile(_ profile: PhysioProfile) async {
-        hrvScoreContribution   = profile.hrvContrib
-        sleepScoreContribution = profile.sleepContrib
+        hrvScoreContribution      = profile.hrvContrib
+        sleepScoreContribution    = profile.sleepContrib
+        recoveryScoreContribution = profile.recoveryLevel
+        effortScoreContribution   = profile.effortLevel
         await fetchData()
     }
 
@@ -347,18 +390,20 @@ final class HealthKitManagerMock: HealthKitManaging {
         }
     }
 
-    // MARK: - Tier 1 — Resting Heart Rate — 60 days, 55–65 bpm, slight downward trend
+    // MARK: - Tier 1 — Resting Heart Rate — 59 days baseline + 1 controlled day
 
-    private static func makeRestingHeartRateSamples() -> [HKQuantitySample] {
+    /// Yesterday's RHR = baseline59dMedian + (1 − recoveryLevel) × 10 bpm.
+    /// recoveryLevel 1.0 → delta 0 → RHR score 100. recoveryLevel 0 → delta 10 → RHR score 0.
+    private static func makeRestingHeartRateSamples(recoveryLevel: Double = 0.6) -> [HKQuantitySample] {
         let calendar = Calendar.current
         let today    = calendar.startOfDay(for: Date())
         let type     = HKQuantityType(.restingHeartRate)
         let unit     = HKUnit.count().unitDivided(by: .minute())
         var rng      = SeededRNG(seed: 0xABCD_1234)
 
-        var samples: [HKQuantitySample] = []
-
-        for offset in 0..<60 {
+        // 59-day stable history (days -60 … -2)
+        var history: [HKQuantitySample] = []
+        for offset in 0..<59 {
             guard
                 let day   = calendar.date(byAdding: .day, value: -(60 - offset), to: today),
                 let start = calendar.date(bySettingHour: 6,
@@ -367,33 +412,46 @@ final class HealthKitManagerMock: HealthKitManaging {
                 let end   = calendar.date(byAdding: .minute, value: 1, to: start)
             else { continue }
 
-            var rhr = Double.random(in: 55...65, using: &rng)
-            if offset >= 50 {
-                rhr -= Double(offset - 50) * 0.2
-            }
-
-            samples.append(HKQuantitySample(
+            let rhr = Double.random(in: 55...65, using: &rng)
+            history.append(HKQuantitySample(
                 type: type,
                 quantity: HKQuantity(unit: unit, doubleValue: max(52, min(68, rhr))),
                 start: start, end: end
             ))
         }
 
+        let sorted   = history.map { $0.quantity.doubleValue(for: unit) }.sorted()
+        let median   = sorted[sorted.count / 2]
+        let level    = max(0, min(1, recoveryLevel))
+        let yesterday = max(45, min(80, median + (1.0 - level) * 10.0))
+
+        var samples = history
+        if let day   = calendar.date(byAdding: .day, value: -1, to: today),
+           let start = calendar.date(bySettingHour: 6, minute: 15, second: 0, of: day),
+           let end   = calendar.date(byAdding: .minute, value: 1, to: start) {
+            samples.append(HKQuantitySample(
+                type: type,
+                quantity: HKQuantity(unit: unit, doubleValue: yesterday),
+                start: start, end: end
+            ))
+        }
         return samples.sorted { $0.startDate > $1.startDate }
     }
 
-    // MARK: - Tier 1 — SpO2 — 60 days, 96–99 % (nightly at ~3am)
+    // MARK: - Tier 1 — SpO2 — 59 days baseline + 1 controlled day
 
-    private static func makeSpO2Samples() -> [HKQuantitySample] {
+    /// Yesterday's nocturnal min SpO2 = 0.91 + recoveryLevel × 0.07.
+    /// level 1.0 → 0.98 (score 100). level 0.0 → 0.91 (score 0).
+    private static func makeSpO2Samples(recoveryLevel: Double = 0.6) -> [HKQuantitySample] {
         let calendar = Calendar.current
         let today    = calendar.startOfDay(for: Date())
         let type     = HKQuantityType(.oxygenSaturation)
         let unit     = HKUnit.percent()
         var rng      = SeededRNG(seed: 0x5A70_B3C1)
 
+        // 59-day stable history (days -60 … -2)
         var samples: [HKQuantitySample] = []
-
-        for offset in 0..<60 {
+        for offset in 0..<59 {
             guard
                 let day   = calendar.date(byAdding: .day, value: -(60 - offset), to: today),
                 let start = calendar.date(bySettingHour: 3,
@@ -402,30 +460,42 @@ final class HealthKitManagerMock: HealthKitManaging {
                 let end   = calendar.date(byAdding: .minute, value: 2, to: start)
             else { continue }
 
-            let spo2 = Double.random(in: 0.96...0.99, using: &rng)
-
             samples.append(HKQuantitySample(
                 type: type,
-                quantity: HKQuantity(unit: unit, doubleValue: spo2),
+                quantity: HKQuantity(unit: unit, doubleValue: Double.random(in: 0.96...0.99, using: &rng)),
                 start: start, end: end
             ))
         }
 
+        let level        = max(0, min(1, recoveryLevel))
+        let spo2Yesterday = 0.91 + level * 0.07
+
+        if let day   = calendar.date(byAdding: .day, value: -1, to: today),
+           let start = calendar.date(bySettingHour: 3, minute: 0, second: 0, of: day),
+           let end   = calendar.date(byAdding: .minute, value: 2, to: start) {
+            samples.append(HKQuantitySample(
+                type: type,
+                quantity: HKQuantity(unit: unit, doubleValue: spo2Yesterday),
+                start: start, end: end
+            ))
+        }
         return samples.sorted { $0.startDate > $1.startDate }
     }
 
-    // MARK: - Tier 1 — Respiratory Rate — 60 days, 14–18 breaths/min
+    // MARK: - Tier 1 — Respiratory Rate — 59 days baseline + 1 controlled day
 
-    private static func makeRespiratoryRateSamples() -> [HKQuantitySample] {
+    /// Yesterday's respi rate = baseline59dMedian + (1 − recoveryLevel) × 3 rpm.
+    /// level 1.0 → delta 0 (score 100). level 0.0 → delta 3 (score 0).
+    private static func makeRespiratoryRateSamples(recoveryLevel: Double = 0.6) -> [HKQuantitySample] {
         let calendar = Calendar.current
         let today    = calendar.startOfDay(for: Date())
         let type     = HKQuantityType(.respiratoryRate)
         let unit     = HKUnit.count().unitDivided(by: .minute())
         var rng      = SeededRNG(seed: 0xF1E2_D3C4)
 
-        var samples: [HKQuantitySample] = []
-
-        for offset in 0..<60 {
+        // 59-day stable history (days -60 … -2)
+        var history: [HKQuantitySample] = []
+        for offset in 0..<59 {
             guard
                 let day   = calendar.date(byAdding: .day, value: -(60 - offset), to: today),
                 let start = calendar.date(bySettingHour: 4,
@@ -434,13 +504,28 @@ final class HealthKitManagerMock: HealthKitManaging {
                 let end   = calendar.date(byAdding: .minute, value: 2, to: start)
             else { continue }
 
-            samples.append(HKQuantitySample(
+            history.append(HKQuantitySample(
                 type: type,
                 quantity: HKQuantity(unit: unit, doubleValue: Double.random(in: 14...18, using: &rng)),
                 start: start, end: end
             ))
         }
 
+        let sorted        = history.map { $0.quantity.doubleValue(for: unit) }.sorted()
+        let median        = sorted[sorted.count / 2]
+        let level         = max(0, min(1, recoveryLevel))
+        let respiYesterday = max(10, min(25, median + (1.0 - level) * 3.0))
+
+        var samples = history
+        if let day   = calendar.date(byAdding: .day, value: -1, to: today),
+           let start = calendar.date(bySettingHour: 4, minute: 0, second: 0, of: day),
+           let end   = calendar.date(byAdding: .minute, value: 2, to: start) {
+            samples.append(HKQuantitySample(
+                type: type,
+                quantity: HKQuantity(unit: unit, doubleValue: respiYesterday),
+                start: start, end: end
+            ))
+        }
         return samples.sorted { $0.startDate > $1.startDate }
     }
 

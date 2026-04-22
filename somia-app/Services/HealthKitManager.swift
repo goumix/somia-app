@@ -42,6 +42,10 @@ final class HealthKitManager: HealthKitManaging {
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
+    // MARK: - Today Effort
+
+    var todayEffort: EffortSnapshot = .empty
+
     // MARK: - Sleep Detail (computed from sleepSamples / nightlyHeartRateSamples)
 
     private var mostRecentNightAsleepSamples: [HKCategorySample] {
@@ -207,8 +211,14 @@ final class HealthKitManager: HealthKitManaging {
             await (hrv, rhr, spo2, respRate, steps, vo2Max)
         let (wristTempResult, daylightResult, walkingHRResult) =
             await (wristTemp, daylight, walkingHR)
+        async let todayExercise  = fetchToday(type: HKQuantityType(.appleExerciseTime))
+        async let todayEnergy    = fetchToday(type: HKQuantityType(.activeEnergyBurned))
+        async let todayHR        = fetchToday(type: HKQuantityType(.heartRate))
+
         let (hrvThreeMonthsResult, hrvYearlyResult, nightlyHRResult) =
             await (hrvThreeMonths, hrvYearly, nightlyHR)
+        let (exResult, energyResult, hrTodayResult) =
+            await (todayExercise, todayEnergy, todayHR)
 
         hrvSamples = hrvResult
         restingHeartRateSamples = rhrResult
@@ -222,7 +232,33 @@ final class HealthKitManager: HealthKitManaging {
         hrvThreeMonthsSamples = hrvThreeMonthsResult
         hrvYearlySamples = hrvYearlyResult
         nightlyHeartRateSamples = nightlyHRResult
+
+        let bpm = HKUnit.count().unitDivided(by: .minute())
+        let cal = Calendar.current
+        let todayStart = cal.startOfDay(for: Date())
+        let todaySteps = stepsResult
+            .filter { $0.startDate >= todayStart }
+            .reduce(0.0) { $0 + $1.quantity.doubleValue(for: .count()) }
+
+        todayEffort = EffortSnapshot(
+            exerciseMinutes: exResult.isEmpty     ? nil : exResult.reduce(0)     { $0 + $1.quantity.doubleValue(for: .minute()) },
+            activeCalories:  energyResult.isEmpty ? nil : energyResult.reduce(0) { $0 + $1.quantity.doubleValue(for: .kilocalorie()) },
+            steps:           stepsResult.filter { $0.startDate >= todayStart }.isEmpty ? nil : todaySteps,
+            peakHeartRate:   hrTodayResult.isEmpty ? nil : hrTodayResult.map { $0.quantity.doubleValue(for: bpm) }.max()
+        )
         isLoading = false
+    }
+
+    private func fetchToday(type: HKQuantityType) async -> [HKQuantitySample] {
+        let cal   = Calendar.current
+        let start = cal.startOfDay(for: Date())
+        let end   = cal.date(byAdding: .day, value: 1, to: start)!
+        let pred  = HKQuery.predicateForSamples(withStart: start, end: end)
+        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: type, predicate: pred)],
+            sortDescriptors: []
+        )
+        return (try? await descriptor.result(for: store)) ?? []
     }
 
     private func fetchHRV() async -> [HKQuantitySample] {

@@ -146,60 +146,19 @@ final class DashboardViewModel {
 
     // MARK: - Effort score
 
-    private(set) var effortScoreResult: EffortScoreCalculator.Result?
+    var effortScoreResult: EffortScoreCalculator.Result? {
+        let e = healthKit.todayEffort
+        return EffortScoreCalculator.score(
+            steps:           e.steps,
+            exerciseMinutes: e.exerciseMinutes,
+            activeCalories:  e.activeCalories,
+            peakHR:          e.peakHeartRate,
+            rhrBaseline:     median60d(healthKit.restingHeartRateSamples, unit: bpmUnit)
+        )
+    }
 
     var effortScore: Double? { effortScoreResult.map { Double($0.total) } }
     var effortProgress: Double { (effortScore ?? 0) / 100.0 }
-
-    func loadEffortScore() async {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
-
-        let exerciseType = HKQuantityType(.appleExerciseTime)
-        let energyType   = HKQuantityType(.activeEnergyBurned)
-        let stepsType    = HKQuantityType(.stepCount)
-        let hrType       = HKQuantityType(.heartRate)
-
-        let cal   = Calendar.current
-        let start = cal.startOfDay(for: Date())
-        let end   = cal.date(byAdding: .day, value: 1, to: start)!
-        let pred  = HKQuery.predicateForSamples(withStart: start, end: end)
-
-        let store = HKHealthStore()
-        async let ex    = fetchQuantity(type: exerciseType, predicate: pred, store: store)
-        async let kcal  = fetchQuantity(type: energyType,   predicate: pred, store: store)
-        async let steps = fetchQuantity(type: stepsType,    predicate: pred, store: store)
-        async let hr    = fetchQuantity(type: hrType,       predicate: pred, store: store)
-        let (exSamples, kcalSamples, stepSamples, hrSamples) = await (ex, kcal, steps, hr)
-
-        let exerciseMinutes = exSamples.isEmpty ? nil :
-            exSamples.reduce(0) { $0 + $1.quantity.doubleValue(for: .minute()) }
-        let activeCalories = kcalSamples.isEmpty ? nil :
-            kcalSamples.reduce(0) { $0 + $1.quantity.doubleValue(for: .kilocalorie()) }
-        let totalSteps = stepSamples.isEmpty ? nil :
-            stepSamples.reduce(0) { $0 + $1.quantity.doubleValue(for: .count()) }
-        let peakHR = hrSamples.isEmpty ? nil :
-            hrSamples.map { $0.quantity.doubleValue(for: bpmUnit) }.max()
-
-        effortScoreResult = EffortScoreCalculator.score(
-            steps: totalSteps,
-            exerciseMinutes: exerciseMinutes,
-            activeCalories: activeCalories,
-            peakHR: peakHR,
-            rhrBaseline: median60d(healthKit.restingHeartRateSamples, unit: bpmUnit)
-        )
-    }
-
-    private func fetchQuantity(
-        type: HKQuantityType,
-        predicate: NSPredicate,
-        store: HKHealthStore
-    ) async -> [HKQuantitySample] {
-        let descriptor = HKSampleQueryDescriptor<HKQuantitySample>(
-            predicates: [.quantitySample(type: type, predicate: predicate)],
-            sortDescriptors: []
-        )
-        return (try? await descriptor.result(for: store)) ?? []
-    }
 
     // MARK: - Ring progress helpers
 

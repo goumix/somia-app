@@ -2,6 +2,21 @@ import HealthKit
 import Observation
 import SwiftUI
 
+// MARK: - EffortSnapshot
+
+struct EffortSnapshot {
+    let exerciseMinutes: Double?
+    let activeCalories: Double?
+    let steps: Double?
+    let peakHeartRate: Double?
+
+    static let empty = EffortSnapshot(
+        exerciseMinutes: nil, activeCalories: nil, steps: nil, peakHeartRate: nil
+    )
+}
+
+// MARK: - Protocol
+
 /// Interface commune à HealthKitManager et HealthKitManagerMock.
 /// Injecté via .environment(\.healthKit) depuis somia_appApp.
 protocol HealthKitManaging: AnyObject, Observable {
@@ -41,6 +56,8 @@ protocol HealthKitManaging: AnyObject, Observable {
     var nightlyHeartRateAvg: Double? { get }
     var nightlyHeartRateMax: Double? { get }
     var nightlyHRDrop: Double? { get }
+
+    var todayEffort: EffortSnapshot { get }
 
     @MainActor func requestAuthorization() async
     func fetchData() async

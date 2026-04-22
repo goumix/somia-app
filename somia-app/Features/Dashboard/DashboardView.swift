@@ -110,7 +110,6 @@ struct DashboardView: View {
                     vm = DashboardViewModel(healthKit: healthKit)
                 }
                 await vm?.requestAuthorization()
-                await vm?.loadEffortScore()
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
