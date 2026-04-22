@@ -31,6 +31,10 @@ struct DriftEvolutionCard: View {
         points.filter { $0.isSufficient }.count < 4
     }
 
+    private var isComingSoon: Bool {
+        true
+    }
+
     // MARK: Derived
 
     private var currentScore: Int { points.last?.score ?? 0 }
@@ -69,7 +73,9 @@ struct DriftEvolutionCard: View {
     // MARK: Body
 
     var body: some View {
-        if isEmpty {
+        if isComingSoon {
+            comingSoonStateView
+        } else if isEmpty {
             emptyStateView
         } else {
             VStack(alignment: .leading, spacing: 14) {
@@ -207,7 +213,33 @@ struct DriftEvolutionCard: View {
                 .stroke(Color.somiaCardBorder, lineWidth: 1)
         )
     }
+
+    // MARK: - Coming Soon State
+
+    private var comingSoonStateView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "chart.line.uptrend.xyaxis")
+                .font(.system(size: 28))
+                .foregroundStyle(Color.somiaBodyText.opacity(0.25))
+            Text("Disponible bientôt !")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.somiaBodyText.opacity(0.5))
+            Text("Cette vue sera disponible bientôt.")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.somiaBodyText.opacity(0.35))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .driftCardStyle()
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.somiaCardBorder, lineWidth: 1)
+        )
+    }
 }
+
+
 
 // MARK: - Preview
 
