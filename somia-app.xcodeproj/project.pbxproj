@@ -10,9 +10,22 @@
 		711942172F6818120082ED85 /* somia-app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "somia-app.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		71DAEB5B2F99679E00714042 /* Exceptions for "somia-app" folder in "somia-app" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 711942162F6818120082ED85 /* somia-app */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		711942192F6818120082ED85 /* somia-app */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				71DAEB5B2F99679E00714042 /* Exceptions for "somia-app" folder in "somia-app" target */,
+			);
 			path = "somia-app";
 			sourceTree = "<group>";
 		};
@@ -256,14 +269,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "somia-icon";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = "somia-app/somia-app.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4H4Q2H22RA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "somia-app/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Somia;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthClinicalHealthRecordsShareUsageDescription = "Somia enregistre vos données de santé pour détecter les anomalies physiologiques.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Somia lit vos données de santé pour détecter les anomalies physiologiques.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Somia may write contextual health data (such as alcohol consumption) to Apple Health to enrich your personal health history.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -273,7 +291,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.getsomia.somia;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -291,14 +309,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "somia-icon";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = "somia-app/somia-app.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 4H4Q2H22RA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "somia-app/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Somia;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthClinicalHealthRecordsShareUsageDescription = "Somia enregistre vos données de santé pour détecter les anomalies physiologiques.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Somia lit vos données de santé pour détecter les anomalies physiologiques.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Somia may write contextual health data (such as alcohol consumption) to Apple Health to enrich your personal health history.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -308,7 +331,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.getsomia.somia;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

@@ -105,10 +105,16 @@ struct SettingsView: View {
 
     private var settingsSection: some View {
         Section {
-            Label("Paramètres généraux", systemImage: "gearshape")
-                .foregroundStyle(.white)
-                .listRowBackground(Color.somiaCard)
-
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("Paramètres généraux", systemImage: "heart.text.clipboard")
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.borderless)
+            .listRowBackground(Color.somiaCard)
             Button {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
@@ -117,6 +123,7 @@ struct SettingsView: View {
                 Label("Permissions HealthKit", systemImage: "heart.text.clipboard")
                     .foregroundStyle(.white)
             }
+            .buttonStyle(.borderless)
             .listRowBackground(Color.somiaCard)
         } header: {
             sectionHeader("PARAMÈTRES")

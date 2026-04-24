@@ -113,6 +113,7 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView()
+                    .presentationDetents([.large])
             }
         }
         .tint(Color.somiaAccent)
