@@ -82,7 +82,7 @@ struct PermissionsScreen: View {
 
                 Spacer()
 
-                SomiaButton(title: "Autoriser l'accès") {
+                SomiaButton(title: "Continuer") {
                     Task {
                         await healthKit.requestAuthorization()
                         coordinator.navigate(to: .userName)
