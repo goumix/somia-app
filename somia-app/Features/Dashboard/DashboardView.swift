@@ -227,7 +227,13 @@ struct DashboardView: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("iPhone") {
+    NavigationStack {
+        DashboardView()
+    }
+}
+
+#Preview("iPad Air M3") {
     NavigationStack {
         DashboardView()
     }

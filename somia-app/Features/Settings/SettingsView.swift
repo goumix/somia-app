@@ -18,6 +18,7 @@ struct SettingsView: View {
 
     @AppStorage("userName") private var userName: String = "Alex"
     @State private var vm: SettingsViewModel?
+    @State private var showEditName = false
 
     // MARK: - Body
 
@@ -33,7 +34,6 @@ struct SettingsView: View {
                     if let vm { mockDataSection(vm: vm) }
                     #endif
 
-                    personalizeSection
                     settingsSection
                     shareSection
                 }
@@ -51,6 +51,9 @@ struct SettingsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showEditName) {
+            EditNameSheet(userName: $userName)
+        }
         .task {
             if vm == nil {
                 vm = SettingsViewModel(healthKit: healthKit)
@@ -62,42 +65,29 @@ struct SettingsView: View {
 
     private var profileHeaderSection: some View {
         Section {
-            HStack(spacing: 14) {
-                Image(systemName: "person.circle.fill")
-                    .font(.system(size: 52))
-                    .foregroundStyle(Color.somiaAccent)
+            Button { showEditName = true } label: {
+                HStack(spacing: 14) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(userName)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(userName)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
+                        Text("Modifier le prénom")
+                            .font(.subheadline)
+                            .foregroundStyle(Color.somiaBodyText)
+                    }
 
-                    Text("Voir le profil")
-                        .font(.subheadline)
+                    Spacer()
+
+                    Image(systemName: "pencil")
+                        .font(.caption)
                         .foregroundStyle(Color.somiaBodyText)
                 }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(Color.somiaBodyText)
+                .padding(.vertical, 6)
             }
-            .padding(.vertical, 6)
+            .buttonStyle(.plain)
             .listRowBackground(Color.somiaCard)
-        }
-    }
-
-    // MARK: - Personalize Section
-
-    private var personalizeSection: some View {
-        Section {
-            Label("Informations personnelles", systemImage: "person")
-                .foregroundStyle(.white)
-                .listRowBackground(Color.somiaCard)
-        } header: {
-            sectionHeader("PERSONNALISER")
         }
     }
 
@@ -110,11 +100,12 @@ struct SettingsView: View {
                     UIApplication.shared.open(url)
                 }
             } label: {
-                Label("Paramètres généraux", systemImage: "heart.text.clipboard")
+                Label("Paramètres généraux", systemImage: "gearshape")
                     .foregroundStyle(.white)
             }
             .buttonStyle(.borderless)
             .listRowBackground(Color.somiaCard)
+
             Button {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
                     UIApplication.shared.open(url)
@@ -134,17 +125,29 @@ struct SettingsView: View {
 
     private var shareSection: some View {
         Section {
-            Label("Reddit", systemImage: "person.fill")
-                .foregroundStyle(.white)
-                .listRowBackground(Color.somiaCard)
+            Button {
+                if let url = URL(string: "https://www.reddit.com/r/somiahealth/") {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("Reddit", systemImage: "bubble.left.and.bubble.right")
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.borderless)
+            .listRowBackground(Color.somiaCard)
 
-            Label("Linkedin", systemImage: "person.fill")
-                .foregroundStyle(.white)
-                .listRowBackground(Color.somiaCard)
-
+            Button {
+                if let url = URL(string: "https://www.linkedin.com/company/getsomia/about/") {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Label("LinkedIn", systemImage: "person.2")
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.borderless)
             .listRowBackground(Color.somiaCard)
         } header: {
-            sectionHeader("S'impliquer")
+            sectionHeader("S'IMPLIQUER")
         }
     }
 
@@ -302,9 +305,64 @@ struct SettingsView: View {
     #endif
 }
 
+// MARK: - EditNameSheet
+
+private struct EditNameSheet: View {
+    @Binding var userName: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: String = ""
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color.somiaBackground.ignoresSafeArea()
+                VStack(spacing: 24) {
+                    TextField("Prénom", text: $draft)
+                        .font(.title3)
+                        .foregroundStyle(.white)
+                        .padding()
+                        .background(Color.somiaCard)
+                        .clipShape(RoundedRectangle(cornerRadius: SomiaRadius.md))
+                        .padding(.horizontal, SomiaSpacing.md)
+                    Spacer()
+                }
+                .padding(.top, SomiaSpacing.lg)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Annuler") { dismiss() }
+                        .foregroundStyle(Color.somiaBodyText)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Enregistrer") {
+                        let trimmed = draft.trimmingCharacters(in: .whitespaces)
+                        if !trimmed.isEmpty { userName = trimmed }
+                        dismiss()
+                    }
+                    .foregroundStyle(Color.somiaAccent)
+                    .fontWeight(.semibold)
+                    .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+            }
+        }
+        .presentationDetents([.height(200)])
+        .onAppear { draft = userName }
+    }
+}
+
 // MARK: - Preview
 
-#Preview {
+#Preview("iPhone") {
+    #if targetEnvironment(simulator)
+    SettingsView()
+        .environment(\.healthKit, HealthKitManagerMock())
+    #else
+    SettingsView()
+    #endif
+}
+
+#Preview("iPad Air M3") {
     #if targetEnvironment(simulator)
     SettingsView()
         .environment(\.healthKit, HealthKitManagerMock())
