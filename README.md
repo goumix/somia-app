@@ -7,7 +7,7 @@ App iOS / Apple Watch qui détecte le *physiological drift* : la dégradation le
 > **Statut : projet terminé (Août 2026).**
 > Somia a été publiée sur l'App Store en achat unique et a dépassé les 10 ventes. Le projet est arrêté depuis l'annonce de la refonte de l'app Santé d'Apple, qui intègre nativement l'analyse de tendances long terme. Ce repo est conservé à titre de portfolio.
 
-<img width="660" alt="1" src="https://github.com/user-attachments/assets/b6a4c608-e0ed-4e93-aad6-3008d5227a04" />
+<img width="660" alt="1" src="https://github.com/user-attachments/assets/b6a4c608-e0ed-4e93-aad6-3008d5227a04" /></br>
 <img width="220" alt="3" src="https://github.com/user-attachments/assets/86f30b12-3ca2-46b8-9711-e36f66a1605a" />
 <img width="220" alt="2" src="https://github.com/user-attachments/assets/1b77cdd9-b4f6-4917-af77-f60acead6605" />
 <img width="220" alt="1" src="https://github.com/user-attachments/assets/7b791eca-f281-420c-ab27-a111bcc6d63d" />
